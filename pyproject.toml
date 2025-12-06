@@ -17,6 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "accelerate>=1.12.0",
+    "datasets>=4.4.1",
     "diffusers>=0.35.2",
     "graphviz>=0.21",
     "graphviz-anywidget>=0.8.0",
@@ -39,6 +40,7 @@ dependencies = [
     "ruff",
     "scikit-learn",
     "torch>=2.9.1",
+    "torch-lucent",
     "torchinfo>=1.8.0",
     "torchview>=0.2.7",
     "torchvision>=0.24.1",
@@ -60,4 +62,7 @@ extend-select = ["I"]  # Add import sorting
 [tool.ruff.lint.isort]
 known-first-party = ["diffusion_deep_dream_research"]
 force-sort-within-sections = true
+
+[tool.uv.sources]
+torch-lucent = { git = "https://github.com/aszokalski/lucent.git", rev = "custom-device-support" }
 
