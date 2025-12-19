@@ -230,7 +230,7 @@ class ExperimentConfig:
 # --- Pipeline Setup ---
 
 model_path = "/models/style50"
-# model_path = "runwayml/stable-diffusion-v1-5"
+
 
 try:
     pipe = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=dtype)

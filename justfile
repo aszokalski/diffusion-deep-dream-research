@@ -32,6 +32,13 @@ format:
 test:
     python -m pytest tests
 
+# Download git submodules
+submodules:
+    git submodule update --init --recursive
+
+models:
+    python diffusion_deep_dream_research/models.py
+
 # Set up Python interpreter environment
 create_environment:
     uv venv --python {{python_version}}
@@ -39,8 +46,3 @@ create_environment:
     @echo ">>> Windows: .\\.venv\\Scripts\\activate"
     @echo ">>> Unix/macOS: source ./.venv/bin/activate"
 
-# PROJECT RULES
-
-# Make dataset
-data: requirements
-    {{python_interpreter}} diffusion_deep_dream_research/dataset.py
