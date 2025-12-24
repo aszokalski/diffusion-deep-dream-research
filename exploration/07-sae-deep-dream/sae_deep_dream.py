@@ -283,7 +283,7 @@ class ExperimentConfig:
 # --- PIPELINE & HOOKS ---
 # -------------------------------------------------------------------------
 
-model_path = "CompVis/stable-diffusion-v1-4"
+model_path = "../../models/stable-diffusion-v1-4"
 
 pipe = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=dtype)
 pipe = pipe.to(device)

@@ -11,3 +11,6 @@ class GeneralConfig(BaseSettings):
 
 
 general_config = GeneralConfig()
+
+if __name__ == "__main__":
+    print(general_config.models.models_dir_abs)

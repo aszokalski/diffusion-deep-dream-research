@@ -1,48 +1,77 @@
 # GLOBALS
 project_name := "diffusion-deep-dream-research"
 python_version := "3.12"
-python_interpreter := "python"
+
+# Helper to check for envsubst
+_check-deps:
+    @command -v envsubst >/dev/null || { echo "❌ Error: 'envsubst' is required. Install 'gettext'."; exit 1; }
 
 # COMMANDS
 
-# List available commands
 default:
     @just --list
 
-# Install Python dependencies
-requirements:
-    uv sync
+update_packages:
+    @just lock
+    @just requirements
 
-# Delete all compiled Python files
+lock:
+    @echo "Locking dependencies from requirements.in..."
+    uv pip compile requirements.in -o requirements.lock
+
+
+requirements:
+    @echo "Syncing dependencies..."
+    uv pip sync requirements.lock
+    @echo "Installing project in editable mode..."
+    uv pip install --no-deps -e .
+
+
+create_environment: _check-deps
+    @echo "Creating Conda Env: {{project_name}} (Python {{python_version}})"
+
+    # Remove any existing temp file
+    rm -f .environment.tmp.yml
+
+    # 1. Remove existing environment (ignore error if it doesn't exist)
+    @echo "Removing old environment if it exists..."
+    if conda env list | grep -q "{{project_name}}"; then \
+        echo "🗑️  Removing existing Conda environment '{{project_name}}'..."; \
+        conda env remove -n "{{project_name}}" -y; \
+    fi
+
+    # 2. Render template with variables passed INLINE (Fixes the shell issue)
+    ENV_NAME="{{project_name}}" PYTHON_VERSION="{{python_version}}" envsubst < environment.yml.tpl > .environment.tmp.yml
+
+    # 3. Create environment
+    conda env create -f .environment.tmp.yml
+
+    # Cleanup
+    rm .environment.tmp.yml
+
+    @echo "Conda environment created."
+    @echo "NEXT STEPS:"
+    @echo "    1. conda activate {{project_name}}"
+    @echo "    2. just requirements"
+
 clean:
     find . -type f -name "*.py[co]" -delete
     find . -type d -name "__pycache__" -delete
+    rm .environment.tmp.yml
 
-# Lint using ruff (use `just format` to do formatting)
 lint:
     ruff format --check
     ruff check
 
-# Format source code with ruff
 format:
     ruff check --fix
     ruff format
 
-# Run tests
 test:
     python -m pytest tests
 
-# Download git submodules
 submodules:
     git submodule update --init --recursive
 
 models:
     python diffusion_deep_dream_research/models.py
-
-# Set up Python interpreter environment
-create_environment:
-    uv venv --python {{python_version}}
-    @echo ">>> New uv virtual environment created. Activate with:"
-    @echo ">>> Windows: .\\.venv\\Scripts\\activate"
-    @echo ">>> Unix/macOS: source ./.venv/bin/activate"
-
