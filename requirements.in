@@ -41,5 +41,6 @@ kornia>=0.7.0,<0.8.0
 hydra-core
 submitit
 hydra-submitit-launcher
+lightning
 
 torch-lucent @ git+https://github.com/aszokalski/lucent.git@custom-device-support
