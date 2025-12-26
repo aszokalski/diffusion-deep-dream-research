@@ -22,11 +22,14 @@ class EarlyExit(Exception):
     pass
 
 @contextmanager
-def hook_context(module: nn.Module, hook: BaseHook):
-    handle = module.register_forward_hook(hook)
+def hook_context(target: nn.Module, hook: BaseHook):
+    handle = target.register_forward_hook(hook)
     try:
         yield hook
     except EarlyExit:
         pass
     finally:
         handle.remove()
+
+def create_target_hook_context(target: nn.Module):
+    return lambda hook: hook_context(target, hook)
