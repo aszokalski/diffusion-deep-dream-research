@@ -18,9 +18,9 @@ class CaptureHook(BaseHook):
     NOTE: This hook completely ignores the spatial dimensions of the activations.
     It computes the mean across all spatial dimensions and batches.
     """
+    timesteps: list[int]
     detach: bool
     early_exit: bool
-    timesteps: list[int]
     pipe_adapter: ModifiedDiffusionPipelineAdapter
     activation_encode: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
 

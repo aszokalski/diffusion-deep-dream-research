@@ -6,7 +6,8 @@ import torch.nn as nn
 
 from diffusion_deep_dream_research.model.hooks.base_hook import BaseHook
 from diffusion_deep_dream_research.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
-from diffusion_deep_dream_research.utils.torch_utils import reshape_to_batch_spatial_channels
+from diffusion_deep_dream_research.utils.torch_utils import reshape_to_batch_spatial_channels, \
+    restore_from_batch_spatial_channels
 
 from submodules.SAeUron.SAE.sae import Sae
 
@@ -28,21 +29,16 @@ class SteeringHook(BaseHook):
         if t not in self.timesteps:
             return output
 
-        if self.detach:
-            loc_outputs = output.detach()
-        else:
-            loc_outputs = output
+        if isinstance(output, tuple):
+            output = output[0]
 
-        if isinstance(loc_outputs, tuple):
-            loc_outputs = loc_outputs[0]
+        original_shape = output.shape
 
-        original_shape = loc_outputs.shape
+        output = reshape_to_batch_spatial_channels(module, output)
 
-        loc_outputs = reshape_to_batch_spatial_channels(module, loc_outputs)
+        activations = self.process_activations(output)
 
-        activations = self.process_activations(loc_outputs)
-
-        output = activations.reshape(original_shape)
+        output = restore_from_batch_spatial_channels(module, activations, original_shape)
 
         return output
 
