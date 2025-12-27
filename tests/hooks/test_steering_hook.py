@@ -30,9 +30,9 @@ class TestLayerSteeringHook:
         fake_input = torch.randn(1, 320, 32, 32)
 
         with hook_context(hook_factory.create(
-            channels=[1],
+            channel=1,
             timesteps=[50],
-            strength=torch.tensor([123.0]),
+            strength=123.0
         )) as hook:
             result = dummy_layer(fake_input).detach().numpy()
 
@@ -63,9 +63,9 @@ class TestSaeSteeringHook:
         fake_input = torch.zeros(1, 10, 4, 4)
 
         with hook_context(hook_factory.create(
-            channels=[50],
+            channel=50,
             timesteps=[50],
-            strength=torch.tensor([123.0]),
+            strength=123.0
         )) as hook:
             result = dummy_layer(fake_input).detach().numpy()
 

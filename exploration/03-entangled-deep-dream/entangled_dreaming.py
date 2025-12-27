@@ -34,18 +34,9 @@ def to_chw(images: torch.Tensor) -> torch.Tensor:
 def to_hwc(images: torch.Tensor) -> torch.Tensor:
     return images.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
 
-def normalize(tensor: torch.Tensor) -> torch.Tensor:
-    max_val = tensor.max()
-    min_val = tensor.min()
-
-    if max_val == min_val:
-        return torch.zeros_like(tensor)
-
-    norm_0_1 = (tensor - min_val) / (max_val - min_val)
-
-    return norm_0_1 * 2.0 - 1.0
 
 def denormalize(tensor: torch.Tensor) -> torch.Tensor:
+    # possibly not needed anymore
     max_val = tensor.max()
     min_val = tensor.min()
 
