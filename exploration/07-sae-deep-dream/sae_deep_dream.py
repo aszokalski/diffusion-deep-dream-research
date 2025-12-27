@@ -356,7 +356,7 @@ class SAESteeringHook:
 
             # 3. INTERVENTION (Iterate over all targets)
             for idx in self.feature_indices:
-                pre_acts[:, idx] += self.strength
+                pre_acts[:, idx] = self.strength
 
             # 4. Activation
             acts = torch.nn.functional.relu(pre_acts)
@@ -611,7 +611,7 @@ if __name__ == "__main__":
         use_prior=True,
         steer_strength=50.0,
         steer_timesteps=range(0, 600),
-        prior_blur_sigma=0.0,
+        prior_blur_sigma=0.0, # to delete
         prior_blur_kernel_size=25,
 
         # Optimization

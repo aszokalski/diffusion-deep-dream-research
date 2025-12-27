@@ -1,4 +1,4 @@
-from typing import Optional, Any, Callable
+from typing import Optional, Any
 
 import torch
 from pydantic import BaseModel, ConfigDict
@@ -12,15 +12,11 @@ from diffusion_deep_dream_research.utils.torch_utils import reshape_to_batch_spa
 from submodules.SAeUron.SAE.sae import Sae
 
 
-class SteeringHook(BaseHook):
+class BaseSteeringHook(BaseHook):
     """An abstraction over a PyTorch hook that modifies selected activations during inference.
     """
-    channel: int
-    strength: float
     timesteps: list[int]
     pipe_adapter: ModifiedDiffusionPipelineAdapter
-    activation_encode: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
-    activation_decode: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
 
 
     @torch.no_grad()
@@ -38,7 +34,7 @@ class SteeringHook(BaseHook):
 
         loc_output = reshape_to_batch_spatial_channels(module, loc_output)
 
-        activations = self.process_activations(loc_output)
+        activations = self._apply_steering(loc_output)
 
         loc_output = restore_from_batch_spatial_channels(module, activations, original_shape)
 
@@ -49,66 +45,52 @@ class SteeringHook(BaseHook):
 
         return output
 
-    @torch.no_grad()
-    def process_activations(self, activations: torch.Tensor) -> torch.Tensor:
+    def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
         # activations: (batch_size, h*w, channels)
-        encoded_activations = self.activation_encode(activations) \
-            if self.activation_encode is not None \
-            else activations
+        raise NotImplementedError
 
-        encoded_activations[:, :, self.channel] = self.strength
+class VectorSteeringHook(BaseSteeringHook):
+    vector: torch.Tensor
+    strength: float
 
-        decoded_activations = self.activation_decode(encoded_activations) \
-            if self.activation_decode is not None \
-            else encoded_activations
+    @torch.no_grad()
+    def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
+        # (batch_size, h*w, channels) + (channels,)
+        return activations + (self.vector * self.strength)
 
-        return decoded_activations
 
+class ChannelSteeringHook(BaseSteeringHook):
+    channel: int
+    strength: float
+
+    @torch.no_grad()
+    def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
+        # Additive steering on a specific index
+        activations[..., self.channel] += self.strength
+        return activations
 
 
 class SteeringHookFactory(BaseModel):
-    """
-    A Factory class for partial construction of SteeringHook instances.
-    """
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     sae: Optional[Sae] = None
     pipe_adapter: ModifiedDiffusionPipelineAdapter
 
     def create(self, *,
                channel: int,
                strength: float,
-               timesteps: list[int]) -> SteeringHook:
+               timesteps: list[int]) -> BaseSteeringHook:
+
         if self.sae is not None:
-            def activation_encode(x: torch.Tensor):
-                # TODO: move top k to decoder?
-                # if shape mismatch happens in top k
-                # original_shape = x.shape
-                # x, _, _ = self.sae.preprocess_input(x)
-                activations = self.sae.pre_acts(x)
-                top_activations, top_indices = self.sae.select_topk(activations)
+            vector = self.sae.W_dec[channel].detach().clone()
 
-                # only preserving top k by setting the rest to zero
-                preserved = torch.zeros_like(activations)
-                preserved.scatter_(dim=-1, index=top_indices, src=top_activations)
-
-                # preserved = preserved.reshape(original_shape)
-                return preserved
-
-
-            def activation_decode(x: torch.Tensor):
-                return (x @ self.sae.W_dec) + self.sae.b_dec
-
-            return SteeringHook(
-                channel=channel,
+            return VectorSteeringHook(
+                vector=vector,
                 strength=strength,
                 timesteps=timesteps,
-                pipe_adapter=self.pipe_adapter,
-                activation_encode=activation_encode,
-                activation_decode=activation_decode
+                pipe_adapter=self.pipe_adapter
             )
         else:
-            return SteeringHook(
+            return ChannelSteeringHook(
                 channel=channel,
                 strength=strength,
                 timesteps=timesteps,

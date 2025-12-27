@@ -134,6 +134,7 @@ class HookedModelWrapper(nn.Module):
         images: torch.Tensor
         hook_activations: dict[int, torch.Tensor]
 
+    @torch.no_grad()
     def forward_with_capture(self,
                              *,
                              prompts: list[str],
@@ -155,7 +156,7 @@ class HookedModelWrapper(nn.Module):
         hook_activations = hook.get_last_activations()
         return HookedModelWrapper.ForwardWithCaptureResult(images, hook_activations)
 
-
+    @torch.no_grad()
     def steer(self,
               *,
               channel: int,
@@ -184,7 +185,12 @@ class HookedModelWrapper(nn.Module):
                     strength=strength,
                     timesteps=timesteps,
         )):
-            return self(prompts=[""]*n_results, seeds=seeds, output_type=output_type)
+            return self(
+                prompts=[""]*n_results,
+                seeds=seeds,
+                output_type=output_type,
+                guidance_scale=1.0
+            )
 
 
     @torch.no_grad()
@@ -207,7 +213,11 @@ class HookedModelWrapper(nn.Module):
         """
         latents = latents / self.pipe_adapter.pipe.vae.config.scaling_factor
         images = self.pipe_adapter.pipe.vae.decode(latents.to(self.pipe_adapter.pipe.vae.dtype)).sample
-        return images
+        cpu_images = images.cpu().permute(0, 2, 3, 1).float().numpy()
+
+        #normalizing images to [0, 1]
+        normalized_images = (cpu_images - cpu_images.min()) / (cpu_images.max() - cpu_images.min())
+        return normalized_images
 
     @lru_cache
     @torch.no_grad()
@@ -221,7 +231,7 @@ class HookedModelWrapper(nn.Module):
         :param batch_size: The batch size to return embeddings for.
         :return: Empty embeddings tensor of shape (batch_size, hidden_dim)
         """
-        _, negative_embeds = self.pipe.encode_prompt(
+        _, negative_embeds = self.pipe_adapter.pipe.encode_prompt(
             prompt="",
             device=self.device,
             num_images_per_prompt=batch_size,
@@ -263,4 +273,13 @@ class HookedModelWrapper(nn.Module):
                 pass
 
             # mean over batch for the selected channel
-            return torch.mean(hook.get_last_activations()[:, channel])
+            return torch.mean(hook.get_last_activations()[timestep][:, channel])
+
+    def apply_scheduler_noise(self, z: torch.Tensor, *, timestep: int) -> torch.Tensor:
+        noise = torch.randn_like(z)
+        noisy_z = self.pipe_adapter.pipe.scheduler.add_noise(
+            original_samples=z,
+            noise=noise,
+            timesteps=torch.tensor([timestep], device=self.device).int()
+        )
+        return noisy_z
