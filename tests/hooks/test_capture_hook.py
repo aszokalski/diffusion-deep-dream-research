@@ -38,7 +38,7 @@ class TestLayerCaptureHook:
         activations = hook.get_last_activations()
         assert 50 in activations
         assert len(activations.keys()) == 1
-        assert activations[50].shape == (320,)
+        assert activations[50].shape == (1, 320,)
         assert activations[50].requires_grad is False
 
     def test_hook_captures_activation_with_gradient(self):
@@ -70,7 +70,7 @@ class TestLayerCaptureHook:
 
         activations = hook.get_last_activations()
         assert 50 in activations
-        assert activations[50].shape == (320,)
+        assert activations[50].shape == (1, 320,)
         assert activations[50].requires_grad is True
 
 class TestSaeCaptureHook:
@@ -105,7 +105,7 @@ class TestSaeCaptureHook:
         activations = hook.get_last_activations()
         assert 50 in activations
         assert len(activations.keys()) == 1
-        assert activations[50].shape == (2000,)
+        assert activations[50].shape == (1, 2000,)
         assert activations[50].requires_grad is False
 
     def test_hook_captures_activation_sae_grad(self):
@@ -139,5 +139,5 @@ class TestSaeCaptureHook:
         activations = hook.get_last_activations()
         assert 50 in activations
         assert len(activations.keys()) == 1
-        assert activations[50].shape == (2000,)
+        assert activations[50].shape == (1, 2000,)
         assert activations[50].requires_grad is True

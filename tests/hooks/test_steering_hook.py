@@ -39,3 +39,36 @@ class TestLayerSteeringHook:
         assert result is not None
         assert result[0,1,0,0] == 123.0
         assert result[0,2,0,0] != 123.0
+
+class TestSaeSteeringHook:
+    def test_hook_captures_activation(self):
+        mock_adapter = MagicMock(spec=ModifiedDiffusionPipelineAdapter)
+        mock_pipe = MagicMock()
+        mock_unet = MagicMock()
+        mock_sae = MockSae(10, 100)
+
+        mock_unet.current_timestep = 50
+
+        mock_pipe.unet = mock_unet
+        type(mock_adapter).pipe = PropertyMock(return_value=mock_pipe)
+
+        hook_factory = SteeringHookFactory(
+            sae=mock_sae,
+            pipe_adapter=mock_adapter,
+        )
+
+        dummy_layer = nn.Conv2d(10, 10, 3)
+        hook_context = create_target_hook_context(dummy_layer)
+
+        fake_input = torch.zeros(1, 10, 4, 4)
+
+        with hook_context(hook_factory.create(
+            channels=[50],
+            timesteps=[50],
+            strength=torch.tensor([123.0]),
+        )) as hook:
+            result = dummy_layer(fake_input).detach().numpy()
+
+
+        assert result.shape == (1, 10, 2, 2) # convolution decreases spatial size
+

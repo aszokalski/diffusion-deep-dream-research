@@ -31,17 +31,20 @@ class CaptureHook(BaseHook):
         if t not in self.timesteps:
             return output
 
-        if self.detach:
-            loc_outputs = output.detach()
+        if isinstance(output, tuple):
+            loc_output = output[0]
         else:
-            loc_outputs = output
+            loc_output = output
 
-        if isinstance(loc_outputs, tuple):
-            loc_outputs = loc_outputs[0]
+        if self.detach:
+            loc_output = loc_output.detach()
 
-        loc_outputs = reshape_to_batch_spatial_channels(module, loc_outputs)
 
-        self._activations[t] = self.process_activations(loc_outputs)
+
+
+        loc_output = reshape_to_batch_spatial_channels(module, loc_output)
+
+        self._activations[t] = self.process_activations(loc_output)
 
         if self.early_exit:
             raise EarlyExit()
@@ -53,12 +56,12 @@ class CaptureHook(BaseHook):
         encoded_activations = self.activation_encode(
             activations) if self.activation_encode is not None else activations
         # The encoder (if specified) encodes the channel dimension of the activations
-        return torch.mean(encoded_activations, dim=(0, 1))  # (channels or encoded_channels,)
+        return torch.mean(encoded_activations, dim=1)  # (batch_size, channels or encoded_channels,)
 
     def get_last_activations(self) -> dict[int, torch.Tensor]:
         """
         Returns the last activations dict captured by the hook.
-        [timestep] -> activations (channels,)
+        [timestep] -> activations (batch_size, channels,)
         """
         if self._activations is None:
             raise RuntimeError("No activations captured yet. Run the model first.")

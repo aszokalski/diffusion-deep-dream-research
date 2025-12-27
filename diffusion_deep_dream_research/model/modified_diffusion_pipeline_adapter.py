@@ -6,9 +6,11 @@ class ModifiedDiffusionPipelineAdapter:
     An adapter for DiffusionPipeline. Exposes the modified pipeline as `pipe` property.
     - Overwrites the forward call of the UNet to set the current timestep.
     - Disables safety checker.
+    - Sets the number of timesteps to 50.
     """
     def __init__(self, pipe: DiffusionPipeline):
         original_forward = pipe.unet.forward
+        pipe.scheduler.set_timesteps(50)
 
         def intercepted_forward(sample, timestep, encoder_hidden_states, **kwargs):
             t_val = timestep.item() if isinstance(timestep, torch.Tensor) else timestep
