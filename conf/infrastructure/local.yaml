@@ -1,0 +1,7 @@
+defaults:
+  - schema
+  - _self_
+
+name: "local"
+
+data_root: "${infrastructure.project_root}"

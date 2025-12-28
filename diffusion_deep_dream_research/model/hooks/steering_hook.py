@@ -65,7 +65,7 @@ class ChannelSteeringHook(BaseSteeringHook):
 
     @torch.no_grad()
     def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
-        # Additive steering on a specific index
+        # (batch_size, h*w, channels)
         activations[..., self.channel] += self.strength
         return activations
 

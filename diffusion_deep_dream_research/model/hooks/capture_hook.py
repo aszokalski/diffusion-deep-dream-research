@@ -39,9 +39,6 @@ class CaptureHook(BaseHook):
         if self.detach:
             loc_output = loc_output.detach()
 
-
-
-
         loc_output = reshape_to_batch_spatial_channels(module, loc_output)
 
         self._activations[t] = self.process_activations(loc_output)

@@ -1,0 +1,7 @@
+defaults:
+  - schema
+  - _self_
+
+name: "SAeUron"
+source_type: "huggingface"
+url: "bcywinski/SAeUron"

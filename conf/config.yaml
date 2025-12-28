@@ -1,0 +1,28 @@
+defaults:
+  - base_config
+  - infrastructure: local
+  - stage: provision
+  - models/stable_diffusion_v_1_4@models.stable_diffusion_v_1_4
+  - models/SAeUron@models.SAeUron
+  - models/style50@models.style50
+  - _self_
+
+project_name: "diffusion-deep-dream-research"
+
+experiment_name: "default_experiment"
+
+
+
+# Hydra run and sweep output directories
+hydra:
+  run:
+    dir: ${infrastructure.outputs_dir}/${experiment_name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+  sweep:
+    # Multirun Output (Root):
+    dir: ${infrastructure.outputs_dir}/${experiment_name}/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    # Multirun Subdir (Per Job):
+    subdir: ${hydra.job.num}
+
+  job:
+    chdir: true

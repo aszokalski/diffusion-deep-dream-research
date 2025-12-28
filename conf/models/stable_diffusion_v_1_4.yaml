@@ -1,0 +1,7 @@
+defaults:
+  - schema
+  - _self_
+
+name: "stable-diffusion-v1-4"
+source_type: "huggingface"
+url: "CompVis/stable-diffusion-v1-4"

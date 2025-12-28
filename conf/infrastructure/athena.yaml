@@ -1,0 +1,8 @@
+defaults:
+  - schema
+  - _self_
+
+name: "athena"
+
+#TODO: switch to Ares
+data_root: "${oc.env:SCRATCH}/${project_name}"

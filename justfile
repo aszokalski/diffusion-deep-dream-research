@@ -74,4 +74,4 @@ submodules:
     git submodule update --init --recursive
 
 models:
-    python diffusion_deep_dream_research/models.py
+    python scripts/00_pull_models.py
