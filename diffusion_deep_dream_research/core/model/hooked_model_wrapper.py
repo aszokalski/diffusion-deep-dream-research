@@ -2,12 +2,13 @@ from functools import lru_cache
 from typing import Callable, ContextManager, Optional, Literal, NamedTuple
 
 import torch
+from PIL.Image import Image
 from diffusers import DiffusionPipeline
 
-from diffusion_deep_dream_research.model.hooks.base_hook import BaseHook, create_target_hook_context, EarlyExit
-from diffusion_deep_dream_research.model.hooks.capture_hook import CaptureHookFactory
-from diffusion_deep_dream_research.model.hooks.steering_hook import SteeringHookFactory
-from diffusion_deep_dream_research.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
+from diffusion_deep_dream_research.core.hooks.base_hook import BaseHook, create_target_hook_context, EarlyExit
+from diffusion_deep_dream_research.core.hooks.capture_hook import CaptureHookFactory, CaptureHook
+from diffusion_deep_dream_research.core.hooks.steering_hook import SteeringHookFactory
+from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
 import torch.nn as nn
 
 from submodules.SAeUron.SAE.sae import Sae
@@ -131,8 +132,8 @@ class HookedModelWrapper(nn.Module):
         return output.images
 
     class ForwardWithCaptureResult(NamedTuple):
-        images: torch.Tensor
-        hook_activations: dict[int, torch.Tensor]
+        images: list[Image]
+        hook_activations: dict[int, dict[CaptureHook.ActivationType, torch.Tensor]]
 
     @torch.no_grad()
     def forward_with_capture(self,
@@ -151,7 +152,7 @@ class HookedModelWrapper(nn.Module):
                     detach=True,
                     early_exit=False
         )) as hook:
-            images = self(prompts=prompts, num_images_per_prompt=num_images_per_prompt)
+            images = self(prompts=prompts, num_images_per_prompt=num_images_per_prompt, output_type="pil")
 
         hook_activations = hook.get_last_activations()
         return HookedModelWrapper.ForwardWithCaptureResult(images, hook_activations)

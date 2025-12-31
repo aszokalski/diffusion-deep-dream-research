@@ -42,5 +42,6 @@ hydra-core
 submitit
 hydra-submitit-launcher
 lightning
+safetensors
 
 torch-lucent @ git+https://github.com/aszokalski/lucent.git@custom-device-support

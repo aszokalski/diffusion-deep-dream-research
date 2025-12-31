@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 from unittest.mock import MagicMock, PropertyMock
 
-from diffusion_deep_dream_research.model.hooks.base_hook import create_target_hook_context
-from diffusion_deep_dream_research.model.hooks.capture_hook import CaptureHookFactory
+from diffusion_deep_dream_research.core.hooks.base_hook import create_target_hook_context
+from diffusion_deep_dream_research.core.hooks.capture_hook import CaptureHookFactory, CaptureHook
 
-from diffusion_deep_dream_research.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
+from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
 from tests.mocks.mock_sae import MockSae
 
 class TestLayerCaptureHook:
@@ -38,8 +38,10 @@ class TestLayerCaptureHook:
         activations = hook.get_last_activations()
         assert 50 in activations
         assert len(activations.keys()) == 1
-        assert activations[50].shape == (1, 320,)
-        assert activations[50].requires_grad is False
+        assert CaptureHook.ActivationType.RAW in activations[50]
+        assert len(activations[50].keys()) == 1
+        assert activations[50][CaptureHook.ActivationType.RAW].shape == (1, 320,)
+        assert activations[50][CaptureHook.ActivationType.RAW].requires_grad is False
 
     def test_hook_captures_activation_with_gradient(self):
         mock_adapter = MagicMock(spec=ModifiedDiffusionPipelineAdapter)
@@ -70,8 +72,11 @@ class TestLayerCaptureHook:
 
         activations = hook.get_last_activations()
         assert 50 in activations
-        assert activations[50].shape == (1, 320,)
-        assert activations[50].requires_grad is True
+        assert len(activations.keys()) == 1
+        assert CaptureHook.ActivationType.RAW in activations[50]
+        assert len(activations[50].keys()) == 1
+        assert activations[50][CaptureHook.ActivationType.RAW].shape == (1, 320,)
+        assert activations[50][CaptureHook.ActivationType.RAW].requires_grad is True
 
 class TestSaeCaptureHook:
     def test_hook_captures_activation_sae(self):
@@ -105,8 +110,10 @@ class TestSaeCaptureHook:
         activations = hook.get_last_activations()
         assert 50 in activations
         assert len(activations.keys()) == 1
-        assert activations[50].shape == (1, 2000,)
-        assert activations[50].requires_grad is False
+        assert CaptureHook.ActivationType.RAW in activations[50]
+        assert CaptureHook.ActivationType.ENCODED in activations[50]
+        assert activations[50][CaptureHook.ActivationType.ENCODED].shape == (1, 2000,)
+        assert activations[50][CaptureHook.ActivationType.ENCODED].requires_grad is False
 
     def test_hook_captures_activation_sae_grad(self):
         mock_adapter = MagicMock(spec=ModifiedDiffusionPipelineAdapter)
@@ -139,5 +146,7 @@ class TestSaeCaptureHook:
         activations = hook.get_last_activations()
         assert 50 in activations
         assert len(activations.keys()) == 1
-        assert activations[50].shape == (1, 2000,)
-        assert activations[50].requires_grad is True
+        assert CaptureHook.ActivationType.RAW in activations[50]
+        assert CaptureHook.ActivationType.ENCODED in activations[50]
+        assert activations[50][CaptureHook.ActivationType.ENCODED].shape == (1, 2000,)
+        assert activations[50][CaptureHook.ActivationType.ENCODED].requires_grad is True

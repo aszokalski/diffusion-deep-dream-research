@@ -40,3 +40,7 @@ def restore_from_batch_spatial_channels(module: nn.Module,
 
     else:
         raise ValueError(f"Unsupported module type: {type(module)}")
+
+
+def get_dtype() -> torch.dtype:
+    return torch.float16 if torch.cuda.is_available() else torch.float32

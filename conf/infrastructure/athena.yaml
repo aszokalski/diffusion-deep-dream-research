@@ -1,8 +1,52 @@
 defaults:
-  - schema
+  - override /hydra/launcher: submitit_slurm
   - _self_
 
 name: "athena"
 
-#TODO: switch to Ares
-data_root: "${oc.env:SCRATCH}/${project_name}"
+data_root: "${oc.env:$PLG_GROUPS_STORAGE/plggailpwmm}/${project_name}"
+
+fabric:
+  accelerator: "auto"
+
+stages:
+  capture:
+    num_images_per_prompt: 5
+    batch_size: 2
+    num_workers: 4
+    log_every_n_steps: 10
+
+hydra:
+  launcher:
+    # 1. Athena Partition & Account
+    partition: plgrid-gpu-a100
+    account: plgmusicxai01-gpu-a100
+
+    nodes: 1
+    gpus_per_node: 1
+    tasks_per_node: 1
+
+    # Athena allows up to 16 CPUs and ~125GB RAM per A100 without extra charge.
+    # We use 16 to speed up num_workers.
+    cpus_per_task: 16
+    mem_gb: 40
+
+    # 3. Time Limits & Reliability
+    timeout_min: 2  # 2 Hours
+
+    # If the job hits the 24h limit, Submitit will auto-requeue it 3 times.
+    # Your .done marker logic ensures it resumes where it left off.
+    max_num_timeout: 3
+    signal_delay_s: 120
+
+    # 4. Advanced SLURM Flags
+    additional_parameters:
+      # Send SIGUSR1 90 seconds before timeout to allow graceful shutdown
+      signal: SIGUSR1@90
+      requeue: true
+
+    # 5. Environment Setup
+    setup:
+      - module load python/3.12
+      - module load Miniconda3/23.3.1-0
+      - conda activate diffusion-deep-dream-research

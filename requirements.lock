@@ -556,6 +556,7 @@ ruff==0.14.10
     # via -r requirements.in
 safetensors==0.7.0
     # via
+    #   -r requirements.in
     #   accelerate
     #   diffusers
     #   transformers

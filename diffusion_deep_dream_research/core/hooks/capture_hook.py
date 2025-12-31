@@ -1,11 +1,12 @@
-from typing import Optional, Any, Callable
+from enum import Enum
+from typing import Optional, Any, Callable, Union
 
 import torch
 from pydantic import PrivateAttr, BaseModel, ConfigDict
 import torch.nn as nn
 
-from diffusion_deep_dream_research.model.hooks.base_hook import BaseHook, EarlyExit
-from diffusion_deep_dream_research.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
+from diffusion_deep_dream_research.core.hooks.base_hook import BaseHook, EarlyExit
+from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
 from diffusion_deep_dream_research.utils.torch_utils import reshape_to_batch_spatial_channels
 
 from submodules.SAeUron.SAE.sae import Sae
@@ -24,7 +25,11 @@ class CaptureHook(BaseHook):
     pipe_adapter: ModifiedDiffusionPipelineAdapter
     activation_encode: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
 
-    _activations: dict[int, torch.Tensor] = PrivateAttr(default_factory=dict)
+    class ActivationType(str, Enum):
+        RAW = "raw"
+        ENCODED = "encoded"
+
+    _activations: dict[int, dict[ActivationType, torch.Tensor]] = PrivateAttr(default_factory=dict)
 
     def __call__(self, module: nn.Module, input: Any, output: Any):
         t = self.pipe_adapter.pipe.unet.current_timestep
@@ -48,14 +53,22 @@ class CaptureHook(BaseHook):
 
         return output
 
-    def process_activations(self, activations: torch.Tensor) -> torch.Tensor:
+    def process_activations(self, activations: torch.Tensor) -> dict[ActivationType, torch.Tensor]:
         # activations: (batch_size, h*w, channels)
-        encoded_activations = self.activation_encode(
-            activations) if self.activation_encode is not None else activations
-        # The encoder (if specified) encodes the channel dimension of the activations
-        return torch.mean(encoded_activations, dim=1)  # (batch_size, channels or encoded_channels,)
+        activation_dict = {}
+        # mean over spatial dimensions
+        activation_dict[self.ActivationType.RAW] = torch.mean(activations, dim=1)
 
-    def get_last_activations(self) -> dict[int, torch.Tensor]:
+        if self.activation_encode is not None:
+            # The encoder (if specified) encodes the channel dimension of the activations
+            encoded_acts = self.activation_encode(activations)
+            # mean over spatial dimensions
+            activation_dict[self.ActivationType.ENCODED] = torch.mean(encoded_acts, dim=1)
+
+
+        return activation_dict  # (batch_size, activation_type, channels or encoded_channels,)
+
+    def get_last_activations(self) -> dict[int, dict[ActivationType, torch.Tensor]]:
         """
         Returns the last activations dict captured by the hook.
         [timestep] -> activations (batch_size, channels,)

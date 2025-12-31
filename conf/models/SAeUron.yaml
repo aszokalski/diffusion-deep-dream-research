@@ -5,3 +5,4 @@ defaults:
 name: "SAeUron"
 source_type: "huggingface"
 url: "bcywinski/SAeUron"
+asset_type: "model"

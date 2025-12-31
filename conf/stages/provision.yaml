@@ -1,5 +1,5 @@
 defaults:
-   - schema
+   - provision_schema
    - _self_
 
 name: "provision"

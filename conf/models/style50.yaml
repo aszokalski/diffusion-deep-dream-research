@@ -5,3 +5,4 @@ defaults:
 name: "style50"
 source_type: "gdrive"
 url: "https://drive.google.com/drive/folders/18x40pLBcfNFyxBWZBGncTjqJTs_75SLx?usp=share_link"
+asset_type: "model"

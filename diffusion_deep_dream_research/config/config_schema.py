@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Union
@@ -8,47 +8,80 @@ from omegaconf import MISSING
 
 from diffusion_deep_dream_research.root import get_project_root
 
-
-@dataclass
-class InfrastructureConfig:
-    name: str = MISSING
-
-    project_root: Path = get_project_root()
-
-    data_root: str = MISSING
-
-    models_dir: Path = "${infrastructure.data_root}/models"
-    outputs_dir: Path = "${infrastructure.data_root}/outputs"
-
-
-class ModelSourceType(Enum):
+class AssetSourceType(str, Enum):
     huggingface = "huggingface"
     gdrive = "gdrive"
 
+class AssetType(str, Enum):
+    model = "model"
+    dataset = "dataset"
+
 @dataclass
-class ModelConfig:
+class AssetConfig:
     name: str = MISSING
-    source_type: ModelSourceType = MISSING
+    source_type: AssetSourceType = MISSING
     url: str = MISSING
-    path: Path = "${infrastructure.models_dir}/${.name}"
+    path: Path = "${assets_dir}/${.name}"
+    asset_type: AssetType = MISSING
+
+
+class Stage(str, Enum):
+    provision = "provision"
+    capture = "capture"
 
 @dataclass
-class Stage:
-    name: str
+class StageConfig:
+    pass
 
 @dataclass
-class ProvisionStageConfig(Stage):
+class ProvisionStageConfig(StageConfig):
     name: str = "provision"
+
+@dataclass
+class CaptureStageConfig(StageConfig):
+    name: str = "capture"
+    prompt_dataset: AssetConfig = MISSING
+    num_images_per_prompt: int = MISSING
+    batch_size: int = MISSING
+    num_workers: int = MISSING
+    log_every_n_steps: int = MISSING
+    dev_n_prompts: Optional[int] = None
+
+@dataclass
+class FabricConfig:
+    accelerator: str
 
 @dataclass
 class ExperimentConfig:
     project_name: str = "diffusion_deep_dream_research"
     experiment_name: str = "default_experiment"
 
-    infrastructure: InfrastructureConfig = MISSING
-    models: dict[str, ModelConfig] = MISSING
+    infrastructure_name: str = MISSING
+
+    project_root: Path = get_project_root()
+
+    data_root: str = MISSING
+
+    assets_dir: Path = "${data_root}/assets"
+    outputs_dir: Path = "${data_root}/outputs"
+
+    models: dict[str, AssetConfig] = field(default_factory=dict)
+    datasets: dict[str, AssetConfig] = field(default_factory=dict)
+    stages: dict[Stage, StageConfig] = field(default_factory=dict)
+
+    fabric: FabricConfig = MISSING
+
+    model_to_analyse: AssetConfig = MISSING
+    target_layer_name: str = MISSING
+    sae: AssetConfig = MISSING
+    use_sae: bool = MISSING
 
     stage: Stage = MISSING
+    stage_config: StageConfig = "${stages.${stage}}"
+
+
+
+
 
 def register_configs():
     cs = ConfigStore.instance()
@@ -56,6 +89,11 @@ def register_configs():
     cs.store(name="base_config", node=ExperimentConfig)
 
     # Inspect schema with: python main.py infrastructure=schema --help
-    cs.store(group="infrastructure", name="schema", node=InfrastructureConfig)
-    cs.store(group="models", name="schema", node=ModelConfig)
-    cs.store(group="stage", name="schema", node=ProvisionStageConfig)
+    cs.store(group="models", name="schema", node=AssetConfig)
+    cs.store(group="datasets", name="schema", node=AssetConfig)
+    cs.store(group="fabric", name="schema", node=FabricConfig)
+    cs.store(group="model_to_analyse", name="schema", node=AssetConfig)
+    cs.store(group="sae", name="schema", node=AssetConfig)
+    cs.store(group="stages", name="provision_schema", node=ProvisionStageConfig)
+    cs.store(group="stages", name="capture_schema", node=CaptureStageConfig)
+

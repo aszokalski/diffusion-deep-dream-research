@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 from unittest.mock import MagicMock, PropertyMock
 
-from diffusion_deep_dream_research.model.hooks.base_hook import create_target_hook_context
-from diffusion_deep_dream_research.model.hooks.steering_hook import SteeringHookFactory
+from diffusion_deep_dream_research.core.hooks.base_hook import create_target_hook_context
+from diffusion_deep_dream_research.core.hooks.steering_hook import SteeringHookFactory
 
-from diffusion_deep_dream_research.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
+from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
 from tests.mocks.mock_sae import MockSae
 
 class TestLayerSteeringHook:

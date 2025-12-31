@@ -1,0 +1,12 @@
+defaults:
+   - capture_schema
+   - _self_
+
+name: "capture"
+prompt_dataset: "${datasets.unlearn_canvas}"
+
+# BELOW SET BY INFRASTRUCTURE
+num_images_per_prompt: ???
+batch_size: ???
+num_workers: ???
+log_every_n_steps: ???

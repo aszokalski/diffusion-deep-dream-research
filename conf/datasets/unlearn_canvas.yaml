@@ -1,0 +1,8 @@
+defaults:
+  - schema
+  - _self_
+
+name: "UnlearnCanvasMetadata.jsonl"
+source_type: "gdrive"
+url: "https://drive.google.com/file/d/1KpwY0uZ2tmGR7UZQ1Y2h3LW3UgkaFJtC/view?usp=share_link"
+asset_type: "dataset"
