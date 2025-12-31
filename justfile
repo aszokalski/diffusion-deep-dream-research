@@ -36,7 +36,7 @@ create_environment: _check-deps
     # 1. Remove existing environment (ignore error if it doesn't exist)
     @echo "Removing old environment if it exists..."
     if conda env list | grep -q "{{project_name}}"; then \
-        echo "🗑️  Removing existing Conda environment '{{project_name}}'..."; \
+        echo "Removing existing Conda environment '{{project_name}}'..."; \
         conda env remove -n "{{project_name}}" -y; \
     fi
 
