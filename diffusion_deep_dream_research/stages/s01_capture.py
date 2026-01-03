@@ -116,7 +116,7 @@ def run_capture(config: ExperimentConfig):
             # result.images: Tensor -> [prompt_1_image_1, prompt_1_image_2, ...]
 
             prompts_repeated = [p for p in prompts for _ in range(stage_conf.num_images_per_prompt)]
-            with open(batch_dir / f"prompts_json", "w") as f:
+            with open(batch_dir / f"prompts.json", "w") as f:
                 json.dump(prompts_repeated, f)
 
             images_save_path = batch_dir / "generated_images"
@@ -130,9 +130,10 @@ def run_capture(config: ExperimentConfig):
                 timestep_path = batch_dir / f"timestep_{timestep:04d}"
                 timestep_path.mkdir(parents=True, exist_ok=True)
                 for act_type, activations in actvations_per_type.items():
+                    # Dict[timestep, Dict[ActivationType, Tensor (batch_size, channels)]]
                     save_path = timestep_path / f"capture_{act_type.value}.safetensors"
                     save_file({"activations": activations}, save_path)
-                    # Dict[timestep, Dict[ActivationType, Tensor (batch_size, channels)]]
+
 
             done_marker.touch()
 

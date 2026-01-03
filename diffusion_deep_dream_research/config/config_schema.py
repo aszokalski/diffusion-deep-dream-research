@@ -28,10 +28,11 @@ class AssetConfig:
 class Stage(str, Enum):
     provision = "provision"
     capture = "capture"
+    timestep_analysis = "timestep_analysis"
 
 @dataclass
 class StageConfig:
-    pass
+    name: str = MISSING
 
 @dataclass
 class ProvisionStageConfig(StageConfig):
@@ -46,6 +47,11 @@ class CaptureStageConfig(StageConfig):
     num_workers: int = MISSING
     log_every_n_steps: int = MISSING
     dev_n_prompts: Optional[int] = None
+
+@dataclass
+class TimestepAnalysisStageConfig(StageConfig):
+    name: str = "timestep_analysis"
+    capture_results_dir: Path = MISSING
 
 @dataclass
 class FabricConfig:
@@ -80,9 +86,6 @@ class ExperimentConfig:
     stage_config: StageConfig = "${stages.${stage}}"
 
 
-
-
-
 def register_configs():
     cs = ConfigStore.instance()
 
@@ -96,4 +99,5 @@ def register_configs():
     cs.store(group="sae", name="schema", node=AssetConfig)
     cs.store(group="stages", name="provision_schema", node=ProvisionStageConfig)
     cs.store(group="stages", name="capture_schema", node=CaptureStageConfig)
+    cs.store(group="stages", name="timestep_analysis_schema", node=TimestepAnalysisStageConfig)
 

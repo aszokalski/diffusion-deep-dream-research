@@ -59,7 +59,7 @@ def show_comparison(img_steered, img_dreamed, title="Experiment Results", use_pr
     plt.axis('off')
     plt.subplot(1, 2, 2)
     plt.imshow(img_dreamed)
-    plt.title("Phase 2: Decorrelated Deep Dream")
+    plt.title("Phase 2: Deep Dream")
     plt.axis('off')
     plt.show()
 
@@ -229,14 +229,10 @@ class ExperimentConfig:
 
 # --- Pipeline Setup ---
 
-model_path = "/models/style50"
+model_path = "../../assets/style50"
 
+pipe = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=dtype)
 
-try:
-    pipe = StableDiffusionPipeline.from_pretrained(model_path, torch_dtype=dtype)
-except:
-    print("Could not load local model, loading from HF Hub...")
-    pipe = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", torch_dtype=dtype)
 
 pipe = pipe.to(device)
 pipe.safety_checker = None

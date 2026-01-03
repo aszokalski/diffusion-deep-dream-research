@@ -6,6 +6,7 @@ defaults:
   - datasets/unlearn_canvas@datasets.unlearn_canvas
   - stages/provision@stages.provision
   - stages/capture@stages.capture
+  - stages/timestep_analysis@stages.timestep_analysis
   - infrastructure/local@_global_
   - _self_
 

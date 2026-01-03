@@ -39,7 +39,6 @@ create_environment: _check-deps
         echo "Removing existing Conda environment '{{project_name}}'..."; \
         conda env remove -n "{{project_name}}" -y; \
     fi
-
     # 2. Render template with variables passed INLINE (Fixes the shell issue)
     ENV_NAME="{{project_name}}" PYTHON_VERSION="{{python_version}}" envsubst < environment.yml.tpl > .environment.tmp.yml
 
