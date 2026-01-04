@@ -52,6 +52,12 @@ class CaptureStageConfig(StageConfig):
 class TimestepAnalysisStageConfig(StageConfig):
     name: str = "timestep_analysis"
     capture_results_dir: Path = MISSING
+    top_k: int = MISSING
+    total_timesteps: int = MISSING
+    peak_threshold: float = MISSING
+    peak_separation: int = MISSING
+    top_peak_count: int = MISSING
+
 
 @dataclass
 class FabricConfig:

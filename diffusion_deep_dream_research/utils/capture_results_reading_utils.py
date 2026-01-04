@@ -1,18 +1,17 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from jaxtyping import Float
+import numpy as np
 from safetensors.torch import load_file
 from pathlib import Path
 from loguru import logger
-import torch
 import json
 
 
 @dataclass
 class Activations:
-    encoded: Optional[Float[torch.Tensor, "batch sae_channel"]]
-    raw: Float[torch.Tensor, "batch channel"]
+    encoded: Optional[np.ndarray] # (total_batch_size, sae_channel)
+    raw: np.ndarray # (total_batch_size, channel)
 
 @dataclass
 class Batch:
@@ -84,14 +83,18 @@ def get_batches(path: Path) -> list[Batch]:
 
                 # SAE activations are optional
                 if activations_encoded_path.exists():
-                    activations_encoded = load_file(activations_encoded_path)["activations"]
+                    activations_encoded = (
+                        load_file(activations_encoded_path)["activations"].detach().cpu().numpy()
+                    )
                 else:
                     activations_encoded = None
 
                 if not activations_raw_path.exists():
                     raise ValueError(f"capture_raw.safetensors does not exist in {activations_raw_path}")
 
-                activations_raw = load_file(activations_raw_path)["activations"]
+                activations_raw = (
+                    load_file(activations_raw_path)["activations"].detach().cpu().numpy()
+                )
 
                 activations = Activations(
                     encoded=activations_encoded,

@@ -143,8 +143,8 @@ class HookedModelWrapper(nn.Module):
                              ) -> ForwardWithCaptureResult:
         """
         Performs a forward pass for n prompts and m num_images_per_prompt and returns:
-        - images [n*m]
-        - hook_activations: dict[timestep] -> activations (batch_size [n*m], channels,)
+        - images [batch_size * num_images_per_prompt]
+        - hook_activations: dict[timestep] -> activations (batch_size * num_images_per_prompt [total_batch_size], channels,)
         """
         with self.target_hook_context(
                 self.capture_hook_factory.create(

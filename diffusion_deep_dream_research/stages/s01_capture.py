@@ -109,10 +109,10 @@ def run_capture(config: ExperimentConfig):
             # That's my intuition at least.
             # Models are trained on variable noise and should be resilient to it
             result = model_wrapper.forward_with_capture(
-                prompts=prompts,
+                prompts=prompts, # batch_size
                 num_images_per_prompt=stage_conf.num_images_per_prompt
             )
-            # result.hook_activations: Dict[timestep, Tensor[batch_size, channels]]
+            # result.hook_activations: Dict[timestep, Tensor[batch_size * num_images_per_prompt, channels]]
             # result.images: Tensor -> [prompt_1_image_1, prompt_1_image_2, ...]
 
             prompts_repeated = [p for p in prompts for _ in range(stage_conf.num_images_per_prompt)]
