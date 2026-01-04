@@ -29,6 +29,7 @@ class Stage(str, Enum):
     provision = "provision"
     capture = "capture"
     timestep_analysis = "timestep_analysis"
+    plots = "plots"
 
 @dataclass
 class StageConfig:

@@ -5,25 +5,21 @@ import torch
 from loguru import logger
 from scipy.interpolate import interp1d
 from scipy.signal import find_peaks
+from tqdm import tqdm
 
 from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, TimestepAnalysisStageConfig, Stage, \
     CaptureStageConfig
-from diffusion_deep_dream_research.utils.capture_results_reading_utils import get_batches
+from diffusion_deep_dream_research.utils.capture_results_reading_utils import get_batches, Batch
 import json
 import pickle
 
 def analysis(
         *,
-        config: ExperimentConfig,
+        batches: list[Batch],
         capture_config: CaptureStageConfig,
         stage_config: TimestepAnalysisStageConfig,
         sae: bool
 ) -> None:
-    capture_results_abs_path = config.project_root / stage_config.capture_results_dir
-    logger.info(
-        f"Using capture results from \n [relative]: {stage_config.capture_results_dir} \n [absolute]: {capture_results_abs_path}")
-
-    batches = get_batches(capture_results_abs_path)
     total_batch_size = capture_config.batch_size * capture_config.num_images_per_prompt
     n_batches = len(batches)
     total_size = total_batch_size * n_batches
@@ -43,7 +39,7 @@ def analysis(
 
     count_in_top_k_activations = np.zeros((n_channels, n_timesteps), dtype=np.float32)
 
-    for batch in batches:
+    for batch in tqdm(batches, mininterval=10.0, ascii=True, ncols=80):
         for timestep, activations in batch.activations_per_timestep.items():
             if sae:
                 raw_activations = activations.encoded # (total_batch_size, n_channels)
@@ -124,8 +120,14 @@ def run_timestep_analysis(config: ExperimentConfig):
     capture_config = cast(CaptureStageConfig, config.stages[Stage.capture])
     use_sae = config.use_sae
 
+    capture_results_abs_path = config.project_root / stage_config.capture_results_dir
+    logger.info(
+        f"Using capture results from \n [relative]: {stage_config.capture_results_dir} \n [absolute]: {capture_results_abs_path}")
+
+    batches = get_batches(capture_results_abs_path)
+
     analysis(
-        config=config,
+        batches=batches,
         capture_config=capture_config,
         stage_config=stage_config,
         sae=False
@@ -133,7 +135,7 @@ def run_timestep_analysis(config: ExperimentConfig):
 
     if use_sae:
         analysis(
-            config=config,
+            batches=batches,
             capture_config=capture_config,
             stage_config=stage_config,
             sae=True

@@ -11,6 +11,7 @@ from loguru import logger
 
 from diffusion_deep_dream_research.stages.s01_capture import run_capture
 from diffusion_deep_dream_research.stages.s02_timestep_analysis import run_timestep_analysis
+from diffusion_deep_dream_research.stages.s03_plots import run_plots
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 
 register_configs()
@@ -18,7 +19,8 @@ register_configs()
 stages: dict[Stage, Callable[[ExperimentConfig], None]] = {
     Stage.provision: run_provision,
     Stage.capture: run_capture,
-    Stage.timestep_analysis: run_timestep_analysis
+    Stage.timestep_analysis: run_timestep_analysis,
+    Stage.plots: run_plots
 }
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
