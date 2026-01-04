@@ -20,13 +20,13 @@ def generate_plots(
         sae: bool
 ) -> None:
     suffix = "_sae" if sae else ""
-    pkl_filename = f"frequency_in_top_k_and_sorted_timesteps{suffix}.pkl"
+    pkl_filename = f"frequency_in_top_k_sorted_timesteps_max_activation{suffix}.pkl"
     json_filename = f"timestep_analysis{suffix}.json"
 
     logger.info(f"Loading analysis data from {timesteps_analysis_results_abs_path}...")
 
     with open(timesteps_analysis_results_abs_path / pkl_filename, "rb") as f:
-        frequency_in_top_k, sorted_timesteps = pickle.load(f)
+        frequency_in_top_k, sorted_timesteps, max_activation = pickle.load(f)
 
     with open(timesteps_analysis_results_abs_path / json_filename, "r") as f:
         analysis_dict = json.load(f)
@@ -47,48 +47,66 @@ def generate_plots(
 
     logger.info(f"Generating plots for {n_channels} channels...")
 
+    active_channels = []
     for channel_idx in tqdm(range(n_channels), desc="Plotting", mininterval=10.0, ascii=True, ncols=80):
-        if np.sum(frequency_in_top_k[channel_idx]) == 0:
-            # Skip inactive channels
-            continue
+        channel_name = f"channel_{channel_idx:04d}"
+
+        if np.sum(frequency_in_top_k[channel_idx]) > 0:
+            # Note the active channels
+            active_channels.append(channel_name)
 
         y_observed = frequency_in_top_k[channel_idx]
 
         f_interp = interp1d(x_observed, y_observed, kind='linear', bounds_error=False, fill_value=0)
         y_full = f_interp(x_full)
 
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # two plots
+        fig, (ax_up, ax_down) = plt.subplots(nrows=2, ncols=1, figsize=(10, 12))
 
+        # Upper Axes: Frequency in Top-K, Active Timesteps Area Under Curve (above 0)
         # Plot 1: Raw Data Points
-        ax.plot(x_observed, y_observed, 'o', label='Observed', alpha=0.4, color='gray')
+        ax_up.plot(x_observed, y_observed, 'o', label='Observed', alpha=0.4, color='gray')
 
         # Plot 2: Interpolated Curve
-        ax.plot(x_full, y_full, '-', label='Interpolated', alpha=0.9, color='#2ecc71', linewidth=2)
+        ax_up.plot(x_full, y_full, '-', label='Interpolated', alpha=0.9, color='#2ecc71', linewidth=2)
 
         # Plot 3: Active Timesteps Area Under Curve (above 0)
-        ax.fill_between(x_full, 0, y_full, alpha=0.15, color='#2ecc71')
+        ax_up.fill_between(x_full, 0, y_full, alpha=0.15, color='#2ecc71', label='Active Timesteps')
 
         # Plot 4: Peaks
         channel_peaks = activity_peaks[channel_idx]
         for t_peak in channel_peaks:
             if 0 <= t_peak < len(y_full):
                 val_peak = y_full[t_peak]
-                ax.plot(t_peak, val_peak, 'x', color='#e74c3c', markersize=10, markeredgewidth=3)
-                ax.text(t_peak, val_peak, f" T={t_peak}", verticalalignment='bottom', fontsize=9, fontweight='bold')
+                ax_up.plot(t_peak, val_peak, 'x', color='#e74c3c', markersize=10, markeredgewidth=3, label='Peak')
+                ax_up.text(t_peak, val_peak, f" T={t_peak}", verticalalignment='bottom', fontsize=9, fontweight='bold')
+
+        ax_up.set_xlabel("Timestep")
+        ax_up.set_ylabel("Frequency in Top-K")
+        ax_up.set_title(f"Channel {channel_idx} Activity Profile{' (SAE)' if sae else ''}")
+
+        # Bottom Axes: Max Activation
+        max_activation_at_timestep = max_activation[channel_idx]
+        ax_down.plot(sorted_timesteps, max_activation_at_timestep, '-', color='#3498db', label='Max Activation')
+
+        ax_down.set_xlabel("Timestep")
+        ax_down.set_ylabel("Max Activation")
+        ax_down.set_title(f"Channel {channel_idx} Max Activation")
 
         # Styling
-        ax.axhline(0, color='black', linewidth=1, alpha=0.3)
-        ax.invert_xaxis()  # Diffusion goes 1000 -> 0
-        ax.set_xlabel("Timestep")
-        ax.set_ylabel("Frequency in Top-K")
-        ax.set_title(f"Channel {channel_idx} Activity Profile{' (SAE)' if sae else ''}")
-        ax.legend()
-        ax.grid(True, alpha=0.2)
+        for ax in (ax_up, ax_down):
+            ax.axhline(0, color='black', linewidth=1, alpha=0.3)
+            ax.invert_xaxis()  # Diffusion goes 1000 -> 0
+            ax.legend()
+            ax.grid(True, alpha=0.2)
 
-        save_path = output_dir / f"channel_{channel_idx:04d}.png"
+        save_path = output_dir / f"{channel_name}.png"
         fig.savefig(save_path, dpi=100)
 
         plt.close(fig)
+
+    with open(output_dir / f"active_channels{suffix}.json", "w") as f:
+        json.dump(active_channels, f, indent=4)
 
     logger.info("Plot generation complete.")
 

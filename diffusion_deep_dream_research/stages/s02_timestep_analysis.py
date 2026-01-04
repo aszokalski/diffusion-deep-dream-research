@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import cast
 
 import numpy as np
@@ -22,40 +23,65 @@ def analysis(
 ) -> None:
     total_batch_size = capture_config.batch_size * capture_config.num_images_per_prompt
     n_batches = len(batches)
-    total_size = total_batch_size * n_batches
+    total_size = total_batch_size * n_batches # Number of total generations (prompts repeated)
+    n_prompts = capture_config.batch_size * n_batches # Number of total prompts
     logger.info(f"Found {n_batches} batches with total size {total_size} (total_batch_size={total_batch_size})")
 
     first_batch = batches[0]
     sorted_timesteps = sorted(first_batch.activations_per_timestep.keys())
+
     timestep_to_idx = {ts: i for i, ts in enumerate(sorted_timesteps)}
+    idx_to_timestep = {i: ts for i, ts in enumerate(sorted_timesteps)}
+
     if sae:
         first_act = first_batch.activations_per_timestep[sorted_timesteps[0]].encoded
     else:
         first_act = first_batch.activations_per_timestep[sorted_timesteps[0]].raw
-    n_channels = first_act.shape[-1]
 
+    n_channels = first_act.shape[-1]
     n_timesteps = len(sorted_timesteps)
+
     logger.info(f"Found {n_channels} channels and {n_timesteps} timesteps (from data)")
 
     count_in_top_k_activations = np.zeros((n_channels, n_timesteps), dtype=np.float32)
+    max_activation = np.zeros((n_channels, n_timesteps), dtype=np.float32)
+    dataset_examples: dict[int, dict[int, list[tuple[str, str]]]] = {
+        channel_idx: {
+            timestep: []
+            for timestep in sorted_timesteps
+        } for channel_idx in range(n_channels)
+    } # channel -> timestep(full) -> list of (prompt, generated_image_path)
 
     for batch in tqdm(batches, mininterval=10.0, ascii=True, ncols=80):
+        prompts = batch.prompts
+        generated_image_paths = batch.generated_image_paths
+
         for timestep, activations in batch.activations_per_timestep.items():
             if sae:
-                raw_activations = activations.encoded # (total_batch_size, n_channels)
+                np_activations = activations.encoded # (total_batch_size, n_channels)
             else:
-                raw_activations = activations.raw  # (total_batch_size, n_channels)
+                np_activations = activations.raw  # (total_batch_size, n_channels)
 
             if timestep not in timestep_to_idx:
                 logger.warning(f"Skipping unexpected timestep {timestep}")
                 continue
             t_idx = timestep_to_idx[timestep]
 
-            act_tensor = torch.from_numpy(raw_activations)
+            # Calculate frequency of activations in top k
+            act_tensor = torch.from_numpy(np_activations)
             top_k_indices = torch.topk(act_tensor, k=stage_config.top_k, dim=-1).indices  # (total_batch_size, k)
 
             counts_tensor = torch.bincount(top_k_indices.flatten(), minlength=n_channels)
             count_in_top_k_activations[:, t_idx] += counts_tensor.cpu().numpy()
+
+            # Update max activations for every channel at every timestep
+            max_activation[:, t_idx] = np.maximum(max_activation[:, t_idx], np_activations.max(axis=0))
+
+            # Assign dataset examples
+            for batch_idx, (prompt, generated_image_path) in enumerate(zip(prompts, generated_image_paths)):
+                top_k_indices_for_batch_idx = top_k_indices[batch_idx]
+                for channel_idx in top_k_indices_for_batch_idx:
+                    dataset_examples[channel_idx.detach().cpu().item()][timestep].append((prompt, str(generated_image_path)))
 
     frequency_in_top_k = count_in_top_k_activations / total_size  # (n_channels, n_timesteps)
 
@@ -110,8 +136,11 @@ def analysis(
         analysis_dict = {"active_timesteps": active_timesteps, "activity_peaks": activity_peaks}
         json.dump(analysis_dict, f)
 
-    with open(f"frequency_in_top_k_and_sorted_timesteps{'_sae' if sae else ''}.pkl", "wb") as f:
-        pickle.dump((frequency_in_top_k, sorted_timesteps), f)
+    with open(f"dataset_examples{'_sae' if sae else ''}.json", "w") as f:
+        json.dump(dataset_examples, f)
+
+    with open(f"frequency_in_top_k_sorted_timesteps_max_activation{'_sae' if sae else ''}.pkl", "wb") as f:
+        pickle.dump((frequency_in_top_k, sorted_timesteps, max_activation), f)
 
     logger.info(f"Analysis complete.")
 
