@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import cast
 from loguru import logger
@@ -141,4 +142,3 @@ def run_capture(config: ExperimentConfig):
                 logger.info(f"Rank {fabric.global_rank}: Processed {i+1} batches...")
 
     fabric.barrier()
-    logger.info(f"Capture stage completed successfully. Results at: {config.outputs_dir}")

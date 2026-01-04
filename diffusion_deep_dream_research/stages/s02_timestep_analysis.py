@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import cast
 
@@ -21,6 +22,8 @@ def analysis(
         stage_config: TimestepAnalysisStageConfig,
         sae: bool
 ) -> None:
+    logger.info(f"Starting analysis (SAE={sae})...")
+
     total_batch_size = capture_config.batch_size * capture_config.num_images_per_prompt
     n_batches = len(batches)
     total_size = total_batch_size * n_batches # Number of total generations (prompts repeated)
@@ -132,9 +135,11 @@ def analysis(
         activity_peaks.append(top_peaks_no_height)
 
     # Save results
-    with open(f"timestep_analysis{'_sae' if sae else ''}.json", "w") as f:
-        analysis_dict = {"active_timesteps": active_timesteps, "activity_peaks": activity_peaks}
-        json.dump(analysis_dict, f)
+    with open(f"active_timesteps{'_sae' if sae else ''}.json", "w") as f:
+        json.dump(active_timesteps, f)
+
+    with open(f"activity_peaks{'_sae' if sae else ''}.json", "w") as f:
+        json.dump(activity_peaks, f)
 
     with open(f"dataset_examples{'_sae' if sae else ''}.json", "w") as f:
         json.dump(dataset_examples, f)
@@ -142,14 +147,14 @@ def analysis(
     with open(f"frequency_in_top_k_sorted_timesteps_max_activation{'_sae' if sae else ''}.pkl", "wb") as f:
         pickle.dump((frequency_in_top_k, sorted_timesteps, max_activation), f)
 
-    logger.info(f"Analysis complete.")
+    logger.info(f"Analysis complete. (SAE={sae})")
 
 def run_timestep_analysis(config: ExperimentConfig):
     stage_config = cast(TimestepAnalysisStageConfig, config.stage_config)
     capture_config = cast(CaptureStageConfig, config.stages[Stage.capture])
     use_sae = config.use_sae
 
-    capture_results_abs_path = config.project_root / stage_config.capture_results_dir
+    capture_results_abs_path = config.outputs_dir / stage_config.capture_results_dir
     logger.info(
         f"Using capture results from \n [relative]: {stage_config.capture_results_dir} \n [absolute]: {capture_results_abs_path}")
 

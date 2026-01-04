@@ -21,16 +21,20 @@ def generate_plots(
 ) -> None:
     suffix = "_sae" if sae else ""
     pkl_filename = f"frequency_in_top_k_sorted_timesteps_max_activation{suffix}.pkl"
-    json_filename = f"timestep_analysis{suffix}.json"
+    active_timesteps_json_filename = f"active_timesteps{suffix}.json"
+    activity_peaks_json_filename = f"activity_peaks{suffix}.json"
+    dataset_examples_json_filename = f"dataset_examples{suffix}.json"
 
     logger.info(f"Loading analysis data from {timesteps_analysis_results_abs_path}...")
 
     with open(timesteps_analysis_results_abs_path / pkl_filename, "rb") as f:
         frequency_in_top_k, sorted_timesteps, max_activation = pickle.load(f)
 
-    with open(timesteps_analysis_results_abs_path / json_filename, "r") as f:
-        analysis_dict = json.load(f)
-        activity_peaks = analysis_dict["activity_peaks"]
+    with open(timesteps_analysis_results_abs_path / activity_peaks_json_filename, "r") as f:
+        activity_peaks = json.load(f)
+
+    with open(timesteps_analysis_results_abs_path / dataset_examples_json_filename, "r") as f:
+        dataset_examples = json.load(f)
 
     output_dir = Path("plots_sae" if sae else "plots")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -116,7 +120,7 @@ def run_plots(config: ExperimentConfig):
     timestep_analysis_config = cast(TimestepAnalysisStageConfig, config.stages[Stage.timestep_analysis])
     use_sae = config.use_sae
 
-    timesteps_analysis_results_abs_path = config.project_root / stage_config.timestep_analysis_results_dir
+    timesteps_analysis_results_abs_path = config.outputs_dir / stage_config.timestep_analysis_results_dir
 
     logger.info(
         f"Using timestep analysis results from \n [relative]: {stage_config.timestep_analysis_results_dir} \n [absolute]: {timesteps_analysis_results_abs_path}")

@@ -1,8 +1,9 @@
+import os
+from pathlib import Path
 from typing import Callable
 
 import hydra
 import submitit
-from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf
 
 from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, register_configs, Stage
@@ -41,7 +42,8 @@ def main(cfg: ExperimentConfig) -> None:
     stages[config.stage](
         config
     )
-    logger.info("Done!")
+
+    logger.info(f"Done! Results at: \n [absolute] {Path(os.getcwd())} \n [relative to outputs] {Path(os.getcwd()).relative_to(config.outputs_dir)}")
 
 
 
