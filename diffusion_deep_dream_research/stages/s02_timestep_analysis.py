@@ -12,13 +12,16 @@ from diffusion_deep_dream_research.utils.capture_results_reading_utils import ge
 import json
 import pickle
 
-def run_timestep_analysis(config: ExperimentConfig):
-    stage_config = cast(TimestepAnalysisStageConfig, config.stage_config)
-    capture_config = cast(CaptureStageConfig, config.stages[Stage.capture])
-    use_sae = config.use_sae
-
+def analysis(
+        *,
+        config: ExperimentConfig,
+        capture_config: CaptureStageConfig,
+        stage_config: TimestepAnalysisStageConfig,
+        sae: bool
+) -> None:
     capture_results_abs_path = config.project_root / stage_config.capture_results_dir
-    logger.info(f"Using capture results from \n [relative]: {stage_config.capture_results_dir} \n [absolute]: {capture_results_abs_path}")
+    logger.info(
+        f"Using capture results from \n [relative]: {stage_config.capture_results_dir} \n [absolute]: {capture_results_abs_path}")
 
     batches = get_batches(capture_results_abs_path)
     total_batch_size = capture_config.batch_size * capture_config.num_images_per_prompt
@@ -29,8 +32,12 @@ def run_timestep_analysis(config: ExperimentConfig):
     first_batch = batches[0]
     sorted_timesteps = sorted(first_batch.activations_per_timestep.keys())
     timestep_to_idx = {ts: i for i, ts in enumerate(sorted_timesteps)}
-    first_act = first_batch.activations_per_timestep[sorted_timesteps[0]].raw
+    if sae:
+        first_act = first_batch.activations_per_timestep[sorted_timesteps[0]].encoded
+    else:
+        first_act = first_batch.activations_per_timestep[sorted_timesteps[0]].raw
     n_channels = first_act.shape[-1]
+
     n_timesteps = len(sorted_timesteps)
     logger.info(f"Found {n_channels} channels and {n_timesteps} timesteps (from data)")
 
@@ -38,7 +45,10 @@ def run_timestep_analysis(config: ExperimentConfig):
 
     for batch in batches:
         for timestep, activations in batch.activations_per_timestep.items():
-            raw_activations = activations.raw  # (total_batch_size, n_channels)
+            if sae:
+                raw_activations = activations.encoded # (total_batch_size, n_channels)
+            else:
+                raw_activations = activations.raw  # (total_batch_size, n_channels)
 
             if timestep not in timestep_to_idx:
                 logger.warning(f"Skipping unexpected timestep {timestep}")
@@ -51,14 +61,13 @@ def run_timestep_analysis(config: ExperimentConfig):
             counts_tensor = torch.bincount(top_k_indices.flatten(), minlength=n_channels)
             count_in_top_k_activations[:, t_idx] += counts_tensor.cpu().numpy()
 
-
-    frequency_in_top_k = count_in_top_k_activations / total_size #(n_channels, n_timesteps)
+    frequency_in_top_k = count_in_top_k_activations / total_size  # (n_channels, n_timesteps)
 
     x_observed = np.array(sorted_timesteps)
-    x_full = np.arange(stage_config.total_timesteps+1)
+    x_full = np.arange(stage_config.total_timesteps + 1)
 
-    active_timesteps = [] # (channel,)
-    activity_peaks = [] # (channel,)
+    active_timesteps = []  # (channel,)
+    activity_peaks = []  # (channel,)
 
     for channel_idx in range(n_channels):
         y_observed = frequency_in_top_k[channel_idx]
@@ -101,11 +110,34 @@ def run_timestep_analysis(config: ExperimentConfig):
         activity_peaks.append(top_peaks_no_height)
 
     # Save results
-    with open("timestep_analysis.json", "w") as f:
+    with open(f"timestep_analysis{'_sae' if sae else ''}.json", "w") as f:
         analysis_dict = {"active_timesteps": active_timesteps, "activity_peaks": activity_peaks}
         json.dump(analysis_dict, f)
 
-    with open("frequency_in_top_k_and_sorted_timesteps.pkl", "wb") as f:
+    with open(f"frequency_in_top_k_and_sorted_timesteps{'_sae' if sae else ''}.pkl", "wb") as f:
         pickle.dump((frequency_in_top_k, sorted_timesteps), f)
 
     logger.info(f"Analysis complete.")
+
+def run_timestep_analysis(config: ExperimentConfig):
+    stage_config = cast(TimestepAnalysisStageConfig, config.stage_config)
+    capture_config = cast(CaptureStageConfig, config.stages[Stage.capture])
+    use_sae = config.use_sae
+
+    analysis(
+        config=config,
+        capture_config=capture_config,
+        stage_config=stage_config,
+        sae=False
+    )
+
+    if use_sae:
+        analysis(
+            config=config,
+            capture_config=capture_config,
+            stage_config=stage_config,
+            sae=True
+        )
+
+
+

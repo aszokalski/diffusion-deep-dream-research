@@ -58,6 +58,10 @@ class TimestepAnalysisStageConfig(StageConfig):
     peak_separation: int = MISSING
     top_peak_count: int = MISSING
 
+@dataclass
+class PlotsStageConfig(StageConfig):
+    name: str = "plots"
+    timestep_analysis_results_dir: Path = MISSING
 
 @dataclass
 class FabricConfig:
@@ -106,4 +110,5 @@ def register_configs():
     cs.store(group="stages", name="provision_schema", node=ProvisionStageConfig)
     cs.store(group="stages", name="capture_schema", node=CaptureStageConfig)
     cs.store(group="stages", name="timestep_analysis_schema", node=TimestepAnalysisStageConfig)
+    cs.store(group="stages", name="plots_schema", node=PlotsStageConfig)
 
