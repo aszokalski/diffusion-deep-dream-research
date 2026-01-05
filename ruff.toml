@@ -1,9 +1,0 @@
-line-length = 99
-src = ["diffusion_deep_dream_research"]
-
-[lint]
-extend-select = ["I"]
-
-[lint.isort]
-known-first-party = ["diffusion_deep_dream_research"]
-force-sort-within-sections = true
