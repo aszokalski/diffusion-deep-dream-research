@@ -6,23 +6,10 @@ PLG_CONDA_BASE := $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda
 help:
 	@echo "Available commands:"
 	@echo "  make setup       - Update submodules and Conda environment"
-	@echo "  make configure-plg-conda - Configure Conda for PLG"
 	@echo "  make update      - Update Python packages"
 	@echo "  make reset       - Delete and recreate the environment"
 	@echo "  make clean       - Remove Python cache files"
 	@echo "  make submodules  - Initialize/update git submodules"
-
-configure-plg-conda:
-	@echo "Creating Conda directories..."
-	mkdir -p $(PLG_CONDA_BASE)/pkgs
-	mkdir -p $(PLG_CONDA_BASE)/envs
-
-	@echo "Configuring Conda paths..."
-	# --add puts these paths at the top of the priority list
-	conda config --add pkgs\_dirs $(PLG_CONDA_BASE)/pkgs
-	conda config --add envs\_dirs $(PLG_CONDA_BASE)/envs
-
-	@echo "Done. Verify with 'conda config --show envs_dirs'"
 
 submodules:
 	git submodule update --init --recursive
