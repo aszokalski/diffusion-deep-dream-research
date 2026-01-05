@@ -1,15 +1,20 @@
 PROJECT_NAME := diffusion-deep-dream-research
 
-.PHONY: help submodules setup reset clean update
+.PHONY: help submodules setup reset clean update configure-plg-conda
 
 # Default target: lists commands
 help:
 	@echo "Available commands:"
 	@echo "  make setup       - Update submodules and Conda environment"
+	@echo "  make configure-plg-conda - Configure Conda for PLG"
 	@echo "  make update      - Update Python packages"
 	@echo "  make reset       - Delete and recreate the environment"
 	@echo "  make clean       - Remove Python cache files"
 	@echo "  make submodules  - Initialize/update git submodules"
+
+configure-plg-conda:
+	conda config --add $PLG_GROUPS_STORAGE/plggailpwmm/aszokalski/.conda/pkg
+	conda config --add $PLG_GROUPS_STORAGE/plggailpwmm/aszokalski/.conda/envs
 
 submodules:
 	git submodule update --init --recursive

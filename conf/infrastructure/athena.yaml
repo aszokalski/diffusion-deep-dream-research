@@ -4,7 +4,7 @@ defaults:
 
 name: "athena"
 
-data_root: "${oc.env:$PLG_GROUPS_STORAGE/plggailpwmm}/${project_name}"
+data_root: "${oc.env:$PLG_GROUPS_STORAGE}/plggailpwmm/aszokalski/${project_name}"
 
 fabric:
   accelerator: "auto"
