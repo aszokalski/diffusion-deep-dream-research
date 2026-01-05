@@ -1,21 +1,22 @@
+import datetime
 import json
 from pathlib import Path
+import time
 from typing import cast
-from loguru import logger
 
-import torch
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline  # pyright: ignore[reportPrivateImportUsage]
 from lightning import Fabric
-from torch.utils.data import DataLoader
+from loguru import logger
 from safetensors.torch import save_file
+from submodules.SAeUron.SAE.sae import Sae
+import torch
+from torch.utils.data import DataLoader
 
-from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, CaptureStageConfig
+from diffusion_deep_dream_research.config.config_schema import CaptureStageConfig, ExperimentConfig
 from diffusion_deep_dream_research.core.data.unique_prompt_dataset import UniquePromptDataset
 from diffusion_deep_dream_research.core.model.hooked_model_wrapper import HookedModelWrapper
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 from diffusion_deep_dream_research.utils.torch_utils import get_dtype
-
-from submodules.SAeUron.SAE.sae import Sae
 
 
 def run_capture(config: ExperimentConfig):
@@ -49,6 +50,9 @@ def run_capture(config: ExperimentConfig):
 
     data_loader = fabric.setup_dataloaders(data_loader)
     dtype = get_dtype()
+
+    total_batches = len(data_loader)
+    logger.info(f"Rank {fabric.global_rank}: Total batches to process on this rank: {total_batches}. World size: {fabric.world_size}")
 
     pipe = StableDiffusionPipeline.from_pretrained(
         config.model_to_analyse.path,
@@ -84,6 +88,8 @@ def run_capture(config: ExperimentConfig):
     rank_dir.mkdir(parents=True, exist_ok=True)
 
     model_wrapper.eval()
+
+    start_time = time.time()
 
     with torch.no_grad():
         for i, batch_prompts in enumerate(data_loader):
@@ -121,9 +127,9 @@ def run_capture(config: ExperimentConfig):
 
             images_save_path = batch_dir / "generated_images"
             images_save_path.mkdir(parents=True, exist_ok=True)
-            for i, image in enumerate(result.images):
+            for img_idx, image in enumerate(result.images):
                 #save pil images as png
-                image.save(images_save_path / f"image_{i:04d}.png")
+                image.save(images_save_path / f"image_{img_idx:04d}.png")
 
 
             for timestep, actvations_per_type in result.hook_activations.items():
@@ -138,6 +144,17 @@ def run_capture(config: ExperimentConfig):
             done_marker.touch()
 
             if i % stage_conf.log_every_n_steps == 0:
-                logger.info(f"Rank {fabric.global_rank}: Processed {i+1} batches...")
+                current_time = time.time()
+                elapsed_seconds = current_time - start_time
+                batches_processed = i + 1
+                
+                avg_seconds_per_batch = elapsed_seconds / batches_processed if batches_processed > 0 else 0
+                
+                remaining_batches = total_batches - batches_processed
+                eta_seconds = remaining_batches * avg_seconds_per_batch
+
+                eta_str = str(datetime.timedelta(seconds=int(eta_seconds)))
+                
+                logger.info(f"Rank {fabric.global_rank}: Processed {batches_processed}/{total_batches} batches. ETA: {eta_str}")
 
     fabric.barrier()

@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING
 
 from diffusion_deep_dream_research.root import get_project_root
+
 
 class AssetSourceType(str, Enum):
     huggingface = "huggingface"
@@ -21,7 +22,7 @@ class AssetConfig:
     name: str = MISSING
     source_type: AssetSourceType = MISSING
     url: str = MISSING
-    path: Path = "${assets_dir}/${.name}"
+    path: Path = "${assets_dir}/${.name}" # pyright: ignore[reportAssignmentType]
     asset_type: AssetType = MISSING
 
 

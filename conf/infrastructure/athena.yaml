@@ -12,8 +12,8 @@ fabric:
 stages:
   capture:
     num_images_per_prompt: 5
-    batch_size: 2
-    num_workers: 4
+    batch_size: 8
+    num_workers: 8
     log_every_n_steps: 10
 
 hydra:
@@ -23,16 +23,16 @@ hydra:
     account: plgmusicxai01-gpu-a100
 
     nodes: 1
-    gpus_per_node: 1
-    tasks_per_node: 1
+    gpus_per_node: 4 #or 4
+    tasks_per_node: 4 #or 4
 
     # Athena allows up to 16 CPUs and ~125GB RAM per A100 without extra charge.
     # We use 16 to speed up num_workers.
     cpus_per_task: 16
-    mem_gb: 40
+    mem_gb: 125
 
     # 3. Time Limits & Reliability
-    timeout_min: 2  # 2 Hours
+    timeout_min: 120  # 2 Hours
 
     # If the job hits the 24h limit, Submitit will auto-requeue it 3 times.
     # Your .done marker logic ensures it resumes where it left off.
@@ -45,13 +45,10 @@ hydra:
       signal: SIGUSR1@90
       requeue: true
 
+      mail-user: szokalskiadam@gmail.com
+      mail-type: BEGIN,END,FAIL
+
     # 5. Environment Setup
     setup:
-      - module load CUDA/12.8.0
-      - module load Miniconda3/23.3.1-0
-      - eval "$(conda shell.bash hook)"
+      - source ./scripts/setup-plg.sh
       - conda activate diffusion-deep-dream-research-env
-      - export NCCL_SOCKET_IFNAME=ib0
-      - export GLOO_SOCKET_IFNAME=ib0
-      - export TP_SOCKET_IFNAME=ib0
-      - export HF_HUB_OFFLINE=1
