@@ -13,7 +13,6 @@ help:
 	@echo "  make submodules  - Initialize/update git submodules"
 
 configure-plg-conda:
-	configure-plg-conda:
 	@echo "Creating Conda directories..."
 	mkdir -p $(PLG_CONDA_BASE)/pkgs
 	mkdir -p $(PLG_CONDA_BASE)/envs
