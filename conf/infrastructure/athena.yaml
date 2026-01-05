@@ -2,9 +2,9 @@ defaults:
   - override /hydra/launcher: submitit_slurm
   - _self_
 
-name: "athena"
+infrastructure_name: "athena"
 
-data_root: "${oc.env:$PLG_GROUPS_STORAGE}/plggailpwmm/aszokalski/${project_name}"
+data_root: "${oc.env:PLG_GROUPS_STORAGE}/plggailpwmm/aszokalski/${project_name}"
 
 fabric:
   accelerator: "auto"
@@ -47,6 +47,11 @@ hydra:
 
     # 5. Environment Setup
     setup:
-      - module load python/3.12
       - module load Miniconda3/23.3.1-0
-      - conda activate diffusion-deep-dream-research
+      - eval "$(conda shell.bash hook)"
+      - conda activate $SCRATCH/myenv
+      - module load CUDA/12.8.0
+      - export NCCL_SOCKET_IFNAME=ib0
+      - export GLOO_SOCKET_IFNAME=ib0
+      - export TP_SOCKET_IFNAME=ib0
+      - export HF_HUB_OFFLINE=1

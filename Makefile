@@ -18,7 +18,7 @@ submodules:
 # 'submodules' is listed as a dependency so it runs first
 setup: submodules
 	@echo "Updating Conda Environment: $(PROJECT_NAME)..."
-	conda env update -n $(PROJECT_NAME) -f environment.yml --prune
+	conda env update -n $(PROJECT_NAME) -f environment.yml --prune -vv --solver=libmamba
 
 update:
 	@echo "updating packages"

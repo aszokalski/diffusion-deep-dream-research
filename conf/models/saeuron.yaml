@@ -2,7 +2,7 @@ defaults:
   - schema
   - _self_
 
-name: "SAeUron"
+name: "saeuron"
 source_type: "huggingface"
 url: "bcywinski/SAeUron"
 asset_type: "model"

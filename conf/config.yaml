@@ -8,7 +8,7 @@ defaults:
   - stages/capture@stages.capture
   - stages/timestep_analysis@stages.timestep_analysis
   - stages/plots@stages.plots
-  - infrastructure/local@_global_
+  - infrastructure/athena@_global_
   - _self_
 
 project_name: "diffusion-deep-dream-research"
