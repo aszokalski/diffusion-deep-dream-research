@@ -2,20 +2,18 @@
 
 ## Setup
 ### Local
-```
-make env
-conda activate diffusion-deep-dream-research-env
-make install
-```
+1. `make env`
+2. `conda activate diffusion-deep-dream-research-env`
+3. `make install`
 
 ### PLGrid
-`chmod +x ./scripts/start-interactive-session.sh`
-`chmod +x ./scripts/setup-plg.sh`
-`./scripts/start-interactive-session.sh`
-`source ./scripts/setup-plg.sh`
-`make env`
-`conda activate diffusion-deep-dream-research-env`
-`make install`
-`exit`
-`source ./scripts/setup-plg.sh`
-`conda activate diffusion-deep-dream-research-env`
+1. `chmod +x ./scripts/start-interactive-session.sh`
+2. `chmod +x ./scripts/setup-plg.sh`
+3. `./scripts/start-interactive-session.sh`
+4. `source ./scripts/setup-plg.sh`
+5. `make env`
+6. `conda activate diffusion-deep-dream-research-env`
+7. `make install`
+8. `exit`
+9. `source ./scripts/setup-plg.sh`
+10. `conda activate diffusion-deep-dream-research-env`
