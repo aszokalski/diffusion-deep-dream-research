@@ -7,6 +7,7 @@ dependencies:
   - python=3.12
   - pip
   - graphviz
+  - cudatoolkit=11.1
   - pip:
       # --- Deep Learning Core ---
       - -e .
