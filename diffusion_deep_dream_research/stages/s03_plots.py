@@ -162,7 +162,6 @@ def generate_plots(
                         fontweight='bold',
                         color='black'
                     )
-
                     ax_up.plot(t_peak, val_peak, 'x', markersize=10, markeredgewidth=3, color='black', zorder=11)
 
                     if t_peak == t_target_peak:
@@ -175,7 +174,7 @@ def generate_plots(
             ax_up.axhline(0, color='black', linewidth=1, alpha=0.3)
             ax_up.invert_xaxis()
             ax_up.grid(True, alpha=0.2)
-            ax_up.legend(loc='upper left')
+            # ax_up.legend(loc='upper left')
 
             # --- 2. Bottom Left: Max Activation ---
             max_activation_at_timestep = max_activation[channel_idx]
