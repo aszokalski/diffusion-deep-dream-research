@@ -63,6 +63,7 @@ class TimestepAnalysisStageConfig(StageConfig):
 class PlotsStageConfig(StageConfig):
     name: str = "plots"
     timestep_analysis_results_dir: Path = MISSING
+    frame_duration: float = MISSING
 
 @dataclass
 class FabricConfig:

@@ -122,12 +122,6 @@ def analysis(
         for p_idx, p_height in zip(peaks, properties['peak_heights']):
             current_peaks.append((int(x_full[p_idx]), float(p_height)))
 
-        # Edges (start and end)
-        if y_full[0] > 0 and len(y_full) > 1 and y_full[0] > y_full[1]:
-            current_peaks.append((int(x_full[0]), float(y_full[0])))
-        if y_full[-1] > 0 and len(y_full) > 1 and y_full[-1] > y_full[-2]:
-            current_peaks.append((int(x_full[-1]), float(y_full[-1])))
-
         # Only keep the top
         current_peaks.sort(key=lambda x: x[1], reverse=True)
         top_peaks = current_peaks[:stage_config.top_peak_count]
