@@ -1,19 +1,24 @@
+import json
 import os
 from pathlib import Path
+import pickle
 from typing import cast
 
-import numpy as np
-import torch
 from loguru import logger
+import numpy as np
 from scipy.interpolate import interp1d
 from scipy.signal import find_peaks
+import torch
 from tqdm import tqdm
 
-from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, TimestepAnalysisStageConfig, Stage, \
-    CaptureStageConfig
-from diffusion_deep_dream_research.utils.capture_results_reading_utils import get_batches, Batch
-import json
-import pickle
+from diffusion_deep_dream_research.config.config_schema import (
+    CaptureStageConfig,
+    ExperimentConfig,
+    Stage,
+    TimestepAnalysisStageConfig,
+)
+from diffusion_deep_dream_research.utils.capture_results_reading_utils import Batch, get_batches
+
 
 def analysis(
         *,

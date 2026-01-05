@@ -4,5 +4,5 @@ defaults:
 
 name: "plots"
 frame_duration: 2
-timestep_analysis_results_dir: default_experiment/Stage.timestep_analysis/2026-01-05/01-16-05
+timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-05/20-34-31/0
 #Ex: outputs/default_experiment/Stage.timestep_analysis/multirun/2025-12-31/02-05-29/0
