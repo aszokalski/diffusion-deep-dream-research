@@ -13,8 +13,8 @@ help:
 	@echo "  make submodules  - Initialize/update git submodules"
 
 configure-plg-conda:
-	conda config --add $PLG_GROUPS_STORAGE/plggailpwmm/aszokalski/.conda/pkg
-	conda config --add $PLG_GROUPS_STORAGE/plggailpwmm/aszokalski/.conda/envs
+	conda config --add $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda/pkg
+	conda config --add $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda/envs
 
 submodules:
 	git submodule update --init --recursive
