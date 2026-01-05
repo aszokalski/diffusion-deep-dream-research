@@ -1,34 +1,29 @@
 PROJECT_NAME := diffusion-deep-dream-research
-PLG_CONDA_BASE := $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda
-.PHONY: help submodules setup reset clean update configure-plg-conda
+.PHONY: help env remove-env submodules install clean
 
 # Default target: lists commands
 help:
 	@echo "Available commands:"
-	@echo "  make setup       - Update submodules and Conda environment"
-	@echo "  make update      - Update Python packages"
-	@echo "  make reset       - Delete and recreate the environment"
+	@echo "  make env		  - Set up conda environment"
+	@echo "  make remove-env  - Remove the conda environment"
+	@echo "  make install     - Install all dependencies"
 	@echo "  make clean       - Remove Python cache files"
 	@echo "  make submodules  - Initialize/update git submodules"
+env:
+	conda create -n $(PROJECT_NAME)-env python=3.12 -y -vv
+	@echo "Conda environment '$(PROJECT_NAME)-env' created."
+	@echo "To activate the environment, run: conda activate $(PROJECT_NAME)-env"
+
+
+remove-env:
+	conda env remove -n $(PROJECT_NAME)-env -vv || true
 
 submodules:
 	git submodule update --init --recursive
 
-# Installs or updates dependencies from environment.yml
-# 'submodules' is listed as a dependency so it runs first
-setup: submodules
-	@echo "Updating Conda Environment: $(PROJECT_NAME)..."
-	conda env update -n $(PROJECT_NAME) -f environment.yml --prune -vv --solver=libmamba
-
-update:
-	@echo "updating packages"
+install: submodules
+	@echo "Installing packages"
 	pip install -e .
-
-# Deletes the environment and re-runs setup
-reset:
-	@echo "Removing environment..."
-	conda env remove -n $(PROJECT_NAME) -y || true
-	$(MAKE) setup
 
 clean:
 	find . -type f -name "*.py[co]" -delete
