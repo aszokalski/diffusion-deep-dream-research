@@ -1,5 +1,5 @@
 PROJECT_NAME := diffusion-deep-dream-research
-
+PLG_CONDA_BASE := $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda
 .PHONY: help submodules setup reset clean update configure-plg-conda
 
 # Default target: lists commands
@@ -13,8 +13,17 @@ help:
 	@echo "  make submodules  - Initialize/update git submodules"
 
 configure-plg-conda:
-	conda config --add $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda/pkg
-	conda config --add $(PLG_GROUPS_STORAGE)/plggailpwmm/aszokalski/.conda/envs
+	configure-plg-conda:
+	@echo "Creating Conda directories..."
+	mkdir -p $(PLG_CONDA_BASE)/pkgs
+	mkdir -p $(PLG_CONDA_BASE)/envs
+
+	@echo "Configuring Conda paths..."
+	# --add puts these paths at the top of the priority list
+	conda config --add pkgs\_dirs $(PLG_CONDA_BASE)/pkgs
+	conda config --add envs\_dirs $(PLG_CONDA_BASE)/envs
+
+	@echo "Done. Verify with 'conda config --show envs_dirs'"
 
 submodules:
 	git submodule update --init --recursive
