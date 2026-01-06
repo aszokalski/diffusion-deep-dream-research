@@ -34,7 +34,7 @@ class BaseSteeringHook(BaseHook):
 
         loc_output = reshape_to_batch_spatial_channels(module, loc_output)
 
-        activations = self._apply_steering(loc_output)
+        activations = self._apply_steering(loc_output, t)
 
         loc_output = restore_from_batch_spatial_channels(module, activations, original_shape)
 
@@ -45,28 +45,28 @@ class BaseSteeringHook(BaseHook):
 
         return output
 
-    def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
+    def _apply_steering(self, activations: torch.Tensor, timestep: int) -> torch.Tensor:
         # activations: (batch_size, h*w, channels)
         raise NotImplementedError
 
 class VectorSteeringHook(BaseSteeringHook):
     vector: torch.Tensor
-    strength: float
+    strength: dict[int, float] # timestep -> strength
 
     @torch.no_grad()
-    def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
+    def _apply_steering(self, activations: torch.Tensor, timestep: int) -> torch.Tensor:
         # (batch_size, h*w, channels) + (channels,)
-        return activations + (self.vector * self.strength)
+        return activations + (self.vector * self.strength[timestep])
 
 
 class ChannelSteeringHook(BaseSteeringHook):
     channel: int
-    strength: float
+    strength: dict[int, float]
 
     @torch.no_grad()
-    def _apply_steering(self, activations: torch.Tensor) -> torch.Tensor:
+    def _apply_steering(self, activations: torch.Tensor, timestep: int) -> torch.Tensor:
         # (batch_size, h*w, channels)
-        activations[..., self.channel] += self.strength
+        activations[..., self.channel] += self.strength[timestep]
         return activations
 
 
@@ -77,7 +77,7 @@ class SteeringHookFactory(BaseModel):
 
     def create(self, *,
                channel: int,
-               strength: float,
+               strength: dict[int, float],
                timesteps: list[int]) -> BaseSteeringHook:
 
         if self.sae is not None:

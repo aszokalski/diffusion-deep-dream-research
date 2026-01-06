@@ -39,7 +39,6 @@ def analysis(
     sorted_timesteps = sorted(first_batch.activations_per_timestep.keys())
 
     timestep_to_idx = {ts: i for i, ts in enumerate(sorted_timesteps)}
-    idx_to_timestep = {i: ts for i, ts in enumerate(sorted_timesteps)}
 
     if sae:
         first_act = first_batch.activations_per_timestep[sorted_timesteps[0]].encoded

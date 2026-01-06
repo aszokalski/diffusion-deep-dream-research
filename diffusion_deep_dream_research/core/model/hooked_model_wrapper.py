@@ -161,7 +161,7 @@ class HookedModelWrapper(nn.Module):
     def steer(self,
               *,
               channel: int,
-              strength: float,
+              strength: dict[int, float],
               timesteps: list[int],
               n_results: int = 1,
               seeds: Optional[list[int]] = None,
@@ -172,7 +172,7 @@ class HookedModelWrapper(nn.Module):
         at `timesteps` with an empty prompt.
 
         :param channel: Channel to steer.
-        :param strength: Strength of steering. The activations of the selected `channel` across all batches and spatial dimentions are set to `strength`.
+        :param strength: Strength per timestep to steer with.
         :param timesteps: Timesteps to steer at. Should be the ones that were the most active for this channel during a dataset run.
         :param n_results: Number of results to generate.
         :param seeds: Seed for each result

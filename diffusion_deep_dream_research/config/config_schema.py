@@ -66,6 +66,21 @@ class PlotsStageConfig(StageConfig):
     timestep_analysis_results_dir: Path = MISSING
     frame_duration: float = MISSING
 
+class PriorMethod(str, Enum):
+    active_timesteps = "active_timesteps"
+    all_timesteps = "all_timesteps"
+
+@dataclass
+class PriorStageConfig(StageConfig):
+    name: str = "prior"
+    timestep_analysis_results_dir: Path = MISSING
+    start_channel: Optional[int] = None
+    end_channel: Optional[int] = None
+    method: PriorMethod = MISSING
+    n_results: int = MISSING
+    seeds: Optional[list[int]] = None
+    log_every_n_steps: int = MISSING
+
 @dataclass
 class FabricConfig:
     accelerator: str
@@ -114,4 +129,4 @@ def register_configs():
     cs.store(group="stages", name="capture_schema", node=CaptureStageConfig)
     cs.store(group="stages", name="timestep_analysis_schema", node=TimestepAnalysisStageConfig)
     cs.store(group="stages", name="plots_schema", node=PlotsStageConfig)
-
+    cs.store(group="stages", name="prior_schema", node=PriorStageConfig)
