@@ -5,23 +5,26 @@ import time
 from pathlib import Path
 from typing import cast
 
-from regex import R
+import numpy as np
 import torch
+from PIL import Image
 from diffusers import StableDiffusionPipeline  # pyright: ignore[reportPrivateImportUsage]
 from lightning import Fabric
 from loguru import logger
 from safetensors.torch import save_file
 from torch.utils.data import DataLoader
 
-from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, PriorStageConfig, \
-    PriorMethod
+from diffusion_deep_dream_research.config.config_schema import (
+    ExperimentConfig,
+    Timesteps,
+    PriorStageConfig,
+)
 from diffusion_deep_dream_research.core.data.index_dataset import IndexDataset
 from diffusion_deep_dream_research.core.model.hooked_model_wrapper import HookedModelWrapper
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 from diffusion_deep_dream_research.utils.torch_utils import get_dtype
 from submodules.SAeUron.SAE.sae import Sae
-import numpy as np
-from PIL import Image
+
 
 def generate_priors(
         *,
@@ -80,7 +83,7 @@ def generate_priors(
     n_channels = max_activation.shape[0]
     start_channel = stage_config.start_channel if stage_config.start_channel is not None else 0
     end_channel = stage_config.end_channel if stage_config.end_channel is not None else n_channels - 1
-    logger.info(f"Generating priors for channels {start_channel} to {end_channel} using method: {stage_config.method}")
+    logger.info(f"Generating priors for channels {start_channel} to {end_channel} using timesteps: {stage_config.timesteps}")
 
     # This is a workaround which allows to run this distributed across multiple GPUs
 
@@ -111,9 +114,9 @@ def generate_priors(
                 logger.info(f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping.")
                 continue
 
-            if stage_config.method == PriorMethod.active_timesteps:
+            if stage_config.timesteps == Timesteps.active_timesteps:
                 steer_timesteps = active_timesteps[channel]
-            elif stage_config.method == PriorMethod.all_timesteps:
+            elif stage_config.timesteps == Timesteps.all_timesteps:
                 steer_timesteps = sorted_timesteps
 
 
@@ -143,7 +146,7 @@ def generate_priors(
                 image = (image * 255).astype(np.uint8)
                 image_pil = Image.fromarray(image)
                 image_pil.save(images_dir / f"prior_image_{j:04d}.png")
-                
+
                 save_file(
                     {"latent": latent},
                     latents_dir / f"prior_latent_{j:04d}.safetensors"

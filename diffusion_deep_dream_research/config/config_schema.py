@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING
@@ -67,7 +67,7 @@ class PlotsStageConfig(StageConfig):
     timestep_analysis_results_dir: Path = MISSING
     frame_duration: float = MISSING
 
-class PriorMethod(str, Enum):
+class Timesteps(str, Enum):
     active_timesteps = "active_timesteps"
     all_timesteps = "all_timesteps"
 
@@ -75,12 +75,37 @@ class PriorMethod(str, Enum):
 class PriorStageConfig(StageConfig):
     name: str = "prior"
     timestep_analysis_results_dir: Path = MISSING
+
     start_channel: Optional[int] = None
     end_channel: Optional[int] = None
-    method: PriorMethod = MISSING
+    timesteps: Timesteps = MISSING
     n_results: int = MISSING
     seeds: Optional[list[int]] = None
     steer_strength_scale: float = MISSING
+    log_every_n_steps: int = MISSING
+
+@dataclass
+class DeepDreamStageConfig(StageConfig):
+    name: str = "deep_dream"
+    timestep_analysis_results_dir: Path = MISSING
+    prior_results_dir: Path = MISSING
+    use_prior: bool = MISSING
+
+    start_channel: Optional[int] = None
+    end_channel: Optional[int] = None
+
+    timesteps: list[Union[int, Timesteps]] = MISSING
+
+    use_noise: bool = MISSING
+
+    # REGULARISATION PARAMETERS
+
+
+    # Only used if not using prior.
+    # Otherwise, using the number of results from prior.
+    n_results: Optional[int] = None
+    seeds: Optional[list[int]] = None
+
     log_every_n_steps: int = MISSING
 
 @dataclass

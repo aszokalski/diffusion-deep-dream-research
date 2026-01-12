@@ -9,7 +9,7 @@ defaults:
   - stages/timestep_analysis@stages.timestep_analysis
   - stages/plots@stages.plots
   - stages/prior@stages.prior
-  - infrastructure/athena@_global_
+  - infrastructure: athena
   - _self_
 
 project_name: "diffusion-deep-dream-research"

@@ -1,15 +1,18 @@
-from typing import Optional, Any
+from typing import Any, Optional
 
-import torch
 from pydantic import BaseModel, ConfigDict
+from submodules.SAeUron.SAE.sae import Sae
+import torch
 import torch.nn as nn
 
 from diffusion_deep_dream_research.core.hooks.base_hook import BaseHook
-from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
-from diffusion_deep_dream_research.utils.torch_utils import reshape_to_batch_spatial_channels, \
-    restore_from_batch_spatial_channels
-
-from submodules.SAeUron.SAE.sae import Sae
+from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import (
+    ModifiedDiffusionPipelineAdapter,
+)
+from diffusion_deep_dream_research.utils.torch_utils import (
+    reshape_to_batch_spatial_channels,
+    restore_from_batch_spatial_channels,
+)
 
 
 class BaseSteeringHook(BaseHook):

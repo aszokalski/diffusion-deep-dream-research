@@ -3,7 +3,7 @@ defaults:
    - _self_
 
 name: "prior"
-method: active_timesteps
+timesteps: active_timesteps
 n_results: 5
 log_every_n_steps: 10
 start_channel: 0
