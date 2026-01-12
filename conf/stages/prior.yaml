@@ -15,4 +15,5 @@ seeds:
    - 3248
    - 1026
 steer_strength_scale: 10
+#steer_strength_scale_sae: 10
 timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-05/20-34-31/0

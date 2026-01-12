@@ -82,6 +82,7 @@ class PriorStageConfig(StageConfig):
     n_results: int = MISSING
     seeds: Optional[list[int]] = None
     steer_strength_scale: float = MISSING
+    steer_strength_scale_sae: Optional[float] = None
     log_every_n_steps: int = MISSING
 
 @dataclass
@@ -89,16 +90,29 @@ class DeepDreamStageConfig(StageConfig):
     name: str = "deep_dream"
     timestep_analysis_results_dir: Path = MISSING
     prior_results_dir: Path = MISSING
-    use_prior: bool = MISSING
 
     start_channel: Optional[int] = None
     end_channel: Optional[int] = None
 
     timesteps: list[Union[int, Timesteps]] = MISSING
 
+    # This is not really a regularization,
+    # but it is similar to transformation robustness.
     use_noise: bool = MISSING
 
     # REGULARISATION PARAMETERS
+    use_prior: bool = MISSING
+
+
+    # OPTIMIZATION PARAMETERS
+    num_steps: int = MISSING
+    learning_rate: float = MISSING
+
+
+
+
+
+
 
 
     # Only used if not using prior.

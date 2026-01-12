@@ -118,12 +118,17 @@ def generate_priors(
                 steer_timesteps = active_timesteps[channel]
             elif stage_config.timesteps == Timesteps.all_timesteps:
                 steer_timesteps = sorted_timesteps
+            
 
+            if sae and stage_config.steer_strength_scale_sae is not None:
+                steer_strength = stage_config.steer_strength_scale_sae
+            else:
+                steer_strength = stage_config.steer_strength_scale
 
             latents = model_wrapper.steer(
                 channel = channel,
                 strength={
-                    ts: max_act * stage_config.steer_strength_scale
+                    ts: max_act * steer_strength
                     for ts, max_act in zip(sorted_timesteps, max_activation[channel])
                 },
                 timesteps=steer_timesteps,

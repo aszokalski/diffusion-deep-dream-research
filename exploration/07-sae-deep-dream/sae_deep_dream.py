@@ -612,7 +612,7 @@ if __name__ == "__main__":
         steer_strength=50.0,
         steer_timesteps=range(0, 600),
         prior_blur_sigma=0.0, # to delete
-        prior_blur_kernel_size=25,
+        prior_blur_kernel_size=25, # to delete
 
         # Optimization
         num_steps=2000,
