@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Callable, ContextManager, Optional, Literal, NamedTuple
 
+import numpy as np
 import torch
 from PIL.Image import Image
 from diffusers import DiffusionPipeline
@@ -206,7 +207,7 @@ class HookedModelWrapper(nn.Module):
         return latents * self.pipe_adapter.pipe.vae.config.scaling_factor
 
     @torch.no_grad()
-    def decode_latents(self, latents: torch.Tensor) -> torch.Tensor:
+    def decode_latents(self, latents: torch.Tensor) -> np.ndarray:
         """
         A function to decode latent representations back into images using the VAE decoder.
         :param latents:

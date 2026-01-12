@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Callable
 
+from diffusion_deep_dream_research.stages.s04_prior import run_prior
 import hydra
 import submitit
 from omegaconf import OmegaConf
@@ -21,7 +22,8 @@ stages: dict[Stage, Callable[[ExperimentConfig], None]] = {
     Stage.provision: run_provision,
     Stage.capture: run_capture,
     Stage.timestep_analysis: run_timestep_analysis,
-    Stage.plots: run_plots
+    Stage.plots: run_plots,
+    Stage.prior: run_prior
 }
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")

@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import cast
 
+from regex import R
 import torch
 from diffusers import StableDiffusionPipeline  # pyright: ignore[reportPrivateImportUsage]
 from lightning import Fabric
@@ -19,7 +20,8 @@ from diffusion_deep_dream_research.core.model.hooked_model_wrapper import Hooked
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 from diffusion_deep_dream_research.utils.torch_utils import get_dtype
 from submodules.SAeUron.SAE.sae import Sae
-
+import numpy as np
+from PIL import Image
 
 def generate_priors(
         *,
@@ -44,7 +46,7 @@ def generate_priors(
     if sae:
         #NOTE: SAE config is very SAeUron specific at the moment. Could be made more general
         sae_path = f"{config.sae.path}/unet.{config.target_layer_name}"
-        sae = Sae.load_from_disk(
+        sae_model = Sae.load_from_disk(
             path=sae_path,
             device=fabric.device,
             decoder=True
@@ -53,7 +55,7 @@ def generate_priors(
         model_wrapper = HookedModelWrapper.from_sae(
             pipe=pipe,
             target_layer_name=config.target_layer_name,
-            sae=sae
+            sae=sae_model
         )
     else:
         model_wrapper = HookedModelWrapper.from_layer(
@@ -89,7 +91,7 @@ def generate_priors(
     rank_dir = Path(f"fabric_rank_{fabric.global_rank}")
     rank_dir.mkdir(parents=True, exist_ok=True)
 
-    output_dir = rank_dir / ("priors_sae" if sae else "priors")
+    output_dir = rank_dir / f"priors{suffix}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Saving priors to {output_dir}")
@@ -118,17 +120,18 @@ def generate_priors(
             latents = model_wrapper.steer(
                 channel = channel,
                 strength={
-                    ts: max_act
+                    ts: max_act * stage_config.steer_strength_scale
                     for ts, max_act in zip(sorted_timesteps, max_activation[channel])
                 },
-                steer_timesteps=steer_timesteps,
+                timesteps=steer_timesteps,
                 n_results=stage_config.n_results,
                 seeds=stage_config.seeds,
                 output_type="latent"
             )
 
-            latents = latents.detach().cpu()
+            latents = latents.detach()
             images = model_wrapper.decode_latents(latents)
+            latents = latents.cpu() # Moving to cpu to save on disk
 
             latents_dir = channel_path / "latents"
             latents_dir.mkdir(parents=True, exist_ok=True)
@@ -137,7 +140,10 @@ def generate_priors(
             images_dir.mkdir(parents=True, exist_ok=True)
 
             for j, (image, latent) in enumerate(zip(images, latents)):
-                image.save(images_dir / f"prior_image_{j:04d}.png")
+                image = (image * 255).astype(np.uint8)
+                image_pil = Image.fromarray(image)
+                image_pil.save(images_dir / f"prior_image_{j:04d}.png")
+                
                 save_file(
                     {"latent": latent},
                     latents_dir / f"prior_latent_{j:04d}.safetensors"

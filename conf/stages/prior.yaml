@@ -3,14 +3,16 @@ defaults:
    - _self_
 
 name: "prior"
-prompt_dataset: "${datasets.unlearn_canvas}"
 method: active_timesteps
 n_results: 5
 log_every_n_steps: 10
+start_channel: 0
+end_channel: 30
 seeds:
    - 1024
    - 1111
    - 4359
    - 3248
    - 1026
+steer_strength_scale: 10
 timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-05/20-34-31/0

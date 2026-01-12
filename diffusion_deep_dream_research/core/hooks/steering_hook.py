@@ -81,8 +81,14 @@ class SteeringHookFactory(BaseModel):
                timesteps: list[int]) -> BaseSteeringHook:
 
         if self.sae is not None:
-            vector = self.sae.W_dec[channel].detach().clone()
+            target_device = self.pipe_adapter.pipe.device
+            target_dtype = self.pipe_adapter.pipe.unet.dtype
 
+            vector = self.sae.W_dec[channel].detach().clone().to(
+                device=target_device, 
+                dtype=target_dtype
+            )
+            
             return VectorSteeringHook(
                 vector=vector,
                 strength=strength,

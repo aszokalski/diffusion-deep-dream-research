@@ -31,6 +31,7 @@ class Stage(str, Enum):
     capture = "capture"
     timestep_analysis = "timestep_analysis"
     plots = "plots"
+    prior = "prior"
 
 @dataclass
 class StageConfig:
@@ -79,6 +80,7 @@ class PriorStageConfig(StageConfig):
     method: PriorMethod = MISSING
     n_results: int = MISSING
     seeds: Optional[list[int]] = None
+    steer_strength_scale: float = MISSING
     log_every_n_steps: int = MISSING
 
 @dataclass
