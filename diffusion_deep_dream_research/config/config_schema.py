@@ -32,6 +32,7 @@ class Stage(str, Enum):
     timestep_analysis = "timestep_analysis"
     plots = "plots"
     prior = "prior"
+    deep_dream = "deep_dream"
 
 @dataclass
 class StageConfig:
@@ -87,8 +88,17 @@ class PriorStageConfig(StageConfig):
 
 @dataclass
 class DeepDreamStageConfig(StageConfig):
+    # SAE parameters are meant to be used
+    # if experiments prove sae needs different values.
+    # First experiments will use only the normal parameters to comapare.
+    # Only the parameters which we intend to test have sae variants.
+
     name: str = "deep_dream"
     timestep_analysis_results_dir: Path = MISSING
+
+    # We will use one set of results for SAE and
+    # non sae so they need to have used correct
+    # hyperparams for each.
     prior_results_dir: Path = MISSING
 
     start_channel: Optional[int] = None
@@ -98,22 +108,44 @@ class DeepDreamStageConfig(StageConfig):
 
     # This is not really a regularization,
     # but it is similar to transformation robustness.
-    use_noise: bool = MISSING
+    see_through_schedule_noise: bool = MISSING
 
     # REGULARISATION PARAMETERS
     use_prior: bool = MISSING
 
+    total_variation_penalty_weight: float = MISSING
+    total_variation_penalty_weight_sae: Optional[float] = None
+
+    range_penalty_weight: float = MISSING
+    range_penalty_weight_sae: Optional[float] = None
+    range_penalty_threshold: float = 3.0
+
+    moment_penalty_weight: float = MISSING
+    moment_penalty_weight_sae: Optional[float] = None
+
+    gradient_smoothing_sigma_start: float = MISSING
+    gradient_smoothing_sigma_end: float = MISSING
+
+    gradient_smoothing_kernel_size: int = 9
+
+    use_decorrelated_space: bool = MISSING
+    use_decorrelated_space_sae: Optional[float] = None
+
+    jitter_max: int = MISSING
+    jitter_max_sae: Optional[int] = None
+
+    rotate_max: int = MISSING
+    rotate_max_sae: Optional[int] = None
+
+    scale_max: float = MISSING
+    scale_max_sae: Optional[float] = None
 
     # OPTIMIZATION PARAMETERS
     num_steps: int = MISSING
+    num_steps_sae: Optional[int] = None
+
     learning_rate: float = MISSING
-
-
-
-
-
-
-
+    learning_rate_sae: Optional[float] = None
 
     # Only used if not using prior.
     # Otherwise, using the number of results from prior.
@@ -171,3 +203,4 @@ def register_configs():
     cs.store(group="stages", name="timestep_analysis_schema", node=TimestepAnalysisStageConfig)
     cs.store(group="stages", name="plots_schema", node=PlotsStageConfig)
     cs.store(group="stages", name="prior_schema", node=PriorStageConfig)
+    cs.store(group="stages", name="deep_dream_schema", node=DeepDreamStageConfig)

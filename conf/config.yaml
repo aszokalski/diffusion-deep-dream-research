@@ -9,6 +9,7 @@ defaults:
   - stages/timestep_analysis@stages.timestep_analysis
   - stages/plots@stages.plots
   - stages/prior@stages.prior
+  - stages/deep_dream@stages.deep_dream
   - infrastructure: athena
   - _self_
 

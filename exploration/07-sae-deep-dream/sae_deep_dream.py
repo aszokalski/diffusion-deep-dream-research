@@ -621,8 +621,8 @@ if __name__ == "__main__":
 
         suppress_weight=0.005,
 
-        start_timestep=0,
-        end_timestep=0,
+        start_timestep=0, # to delete
+        end_timestep=0, # to delete
 
         # Regularization
         tv_weight=0.00005,
