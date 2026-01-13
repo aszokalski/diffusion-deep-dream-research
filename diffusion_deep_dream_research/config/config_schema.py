@@ -153,6 +153,7 @@ class DeepDreamStageConfig(StageConfig):
     seeds: Optional[list[int]] = None
 
     log_every_n_steps: int = MISSING
+    log_opt_every_n_steps: int = MISSING
 
 @dataclass
 class FabricConfig:

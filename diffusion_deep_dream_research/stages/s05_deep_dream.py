@@ -91,10 +91,16 @@ def generate_deep_dreams_for_channel_timestep(
                 timestep=timestep,
             )
 
+            log_now: bool = (step % stage_config.log_opt_every_n_steps == 0) or (step == stage_config.num_steps - 1)
             loss = -activation
             for penalty in penalties:
                 penalty_value = penalty(priors)
                 loss = loss + penalty_value
+                if log_now:
+                    logger.debug(
+                        f"Channel {channel}, Timestep {timestep}, Step {step}: Penalty {penalty.__class__.__name__} value: {penalty_value.item():.6f}"
+                    )
+
 
             #Backward pass
             scaler.scale(loss).backward()
