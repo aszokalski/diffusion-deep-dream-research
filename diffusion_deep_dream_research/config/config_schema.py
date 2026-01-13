@@ -104,7 +104,7 @@ class DeepDreamStageConfig(StageConfig):
     start_channel: Optional[int] = None
     end_channel: Optional[int] = None
 
-    timesteps: list[Union[int, Timesteps]] = MISSING
+    timesteps: list[Union[int, str]] = MISSING
 
     # This is not really a regularization,
     # but it is similar to transformation robustness.
@@ -134,8 +134,8 @@ class DeepDreamStageConfig(StageConfig):
     jitter_max: int = MISSING
     jitter_max_sae: Optional[int] = None
 
-    rotate_max: int = MISSING
-    rotate_max_sae: Optional[int] = None
+    rotate_max: float = MISSING
+    rotate_max_sae: Optional[float] = None
 
     scale_max: float = MISSING
     scale_max_sae: Optional[float] = None
@@ -153,7 +153,7 @@ class DeepDreamStageConfig(StageConfig):
     seeds: Optional[list[int]] = None
 
     log_every_n_steps: int = MISSING
-    log_opt_every_n_steps: int = MISSING
+    intermediate_opt_results_every_n_steps: int = MISSING
 
 @dataclass
 class FabricConfig:

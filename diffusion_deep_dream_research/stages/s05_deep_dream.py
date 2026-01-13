@@ -2,8 +2,9 @@ import datetime
 import json
 import time
 from pathlib import Path
-from typing import cast
+from typing import cast, Dict, Any
 
+from diffusion_deep_dream_research.core.hooks.capture_hook import CaptureHook
 import numpy as np
 import torch
 from PIL import Image
@@ -41,10 +42,13 @@ def generate_deep_dreams_for_channel_timestep(
         model_wrapper: HookedModelWrapper,
         channel: int,
         timestep: int,
-        priors: torch.Tensor
+        activation_type: CaptureHook.ActivationType,
+        priors: torch.Tensor,
+        output_dir: Path  # Added output_dir to save intermediate results
 ) -> torch.Tensor:
-    priors.requires_grad_(True)
-    latents = priors # Initial latents
+    latents = priors.detach().clone().float()
+    latents.requires_grad_(True)
+    
     optimizer = torch.optim.AdamW([latents], lr=stage_config.learning_rate)
     scaler = GradScaler(enabled=(priors.device.type == "cuda"))
 
@@ -73,8 +77,6 @@ def generate_deep_dreams_for_channel_timestep(
         MomentPenalty(weight=stage_config.moment_penalty_weight),
     ]
 
-
-
     for step in range(stage_config.num_steps):
         optimizer.zero_grad()
 
@@ -87,22 +89,55 @@ def generate_deep_dreams_for_channel_timestep(
             # Forward pass
             activation = model_wrapper.activation(
                 z=z,
+                activation_type=activation_type,
                 channel=channel,
                 timestep=timestep,
             )
 
-            log_now: bool = (step % stage_config.log_opt_every_n_steps == 0) or (step == stage_config.num_steps - 1)
             loss = -activation
+            
+            # Dictionary to track statistics for this step
+            step_stats: Dict[str, Any] = {
+                "step": step,
+                "activation": activation.item(),
+                "base_loss": loss.item(),
+                "penalties": {}
+            }
+
             for penalty in penalties:
-                penalty_value = penalty(priors)
+                # FIX: Apply penalty to 'latents' (the moving tensor), not 'priors' (the static original)
+                penalty_value = penalty(latents) 
                 loss = loss + penalty_value
-                if log_now:
-                    logger.debug(
-                        f"Channel {channel}, Timestep {timestep}, Step {step}: Penalty {penalty.__class__.__name__} value: {penalty_value.item():.6f}"
-                    )
+                step_stats["penalties"][penalty.__class__.__name__] = penalty_value.item()
 
+            step_stats["total_loss"] = loss.item()
 
-            #Backward pass
+            # --- Intermediate Result Saving ---
+            should_save_intermediate = (
+                stage_config.intermediate_opt_results_every_n_steps > 0 and 
+                step % stage_config.intermediate_opt_results_every_n_steps == 0
+            )
+
+            if should_save_intermediate:
+                # Create a distinct folder for this step to keep things organized
+                step_dir = output_dir / "intermediate" / f"step_{step:04d}"
+                step_dir.mkdir(parents=True, exist_ok=True)
+                
+                # 1. Save Stats
+                with open(step_dir / "stats.json", "w") as f:
+                    json.dump(step_stats, f, indent=4)
+
+                # 2. Decode and Save Image
+                # We use a no_grad block here to avoid messing up the main optimization graph
+                with torch.no_grad():
+                    current_images = model_wrapper.decode_latents(latents.detach())
+                    # Assuming batch size might be > 1, save all
+                    for j, image_arr in enumerate(current_images):
+                        image_u8 = (image_arr * 255).astype(np.uint8)
+                        Image.fromarray(image_u8).save(step_dir / f"image_{j:04d}.png")
+            # ----------------------------------
+
+            # Backward pass
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
 
@@ -139,7 +174,6 @@ def generate_deep_dreams(
     pipe.set_progress_bar_config(disable=config.infrastructure_name != "local")
 
     if sae:
-        # NOTE: SAE config is very SAeUron specific at the moment. Could be made more general
         sae_path = f"{config.sae.path}/unet.{config.target_layer_name}"
         sae_model = Sae.load_from_disk(
             path=sae_path,
@@ -152,11 +186,13 @@ def generate_deep_dreams(
             target_layer_name=config.target_layer_name,
             sae=sae_model
         )
+        activation_type = CaptureHook.ActivationType.ENCODED
     else:
         model_wrapper = HookedModelWrapper.from_layer(
             pipe=pipe,
             target_layer_name=config.target_layer_name,
         )
+        activation_type = CaptureHook.ActivationType.RAW
 
     # Data and parameters setup
     suffix = "_sae" if sae else ""
@@ -166,7 +202,7 @@ def generate_deep_dreams(
 
     # Load Timesteps Analysis Results
     with open(timesteps_analysis_results_abs_path / active_timesteps_json_filename, "r") as f:
-        active_timesteps = json.load(f)  # channel -> list of timesteps
+        active_timesteps = json.load(f)
 
     use_active_timesteps = Timesteps.active_timesteps in stage_config.timesteps
     additional_timesteps = [
@@ -183,9 +219,7 @@ def generate_deep_dreams(
     start_channel = stage_config.start_channel if stage_config.start_channel is not None else 0
     end_channel = stage_config.end_channel if stage_config.end_channel is not None else n_channels - 1
     logger.info(
-        f"Generating priors for channels {start_channel} to {end_channel} using timesteps: {stage_config.timesteps}")
-
-    # This is a workaround which allows to run this distributed across multiple GPUs
+        f"Generating deep_dream for channels {start_channel} to {end_channel} using timesteps: {stage_config.timesteps}")
 
     channels_dataset = IndexDataset(start_channel, end_channel + 1)
     data_loader = DataLoader(channels_dataset, batch_size=1, shuffle=False, collate_fn=lambda x: x)
@@ -194,100 +228,105 @@ def generate_deep_dreams(
     rank_dir = Path(f"fabric_rank_{fabric.global_rank}")
     rank_dir.mkdir(parents=True, exist_ok=True)
 
-    output_dir = rank_dir / f"priors{suffix}"
+    output_dir = rank_dir / f"deep_dream{suffix}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Saving priors to {output_dir}")
+    logger.info(f"Saving deep_dream to {output_dir}")
 
     model_wrapper.eval()
 
     start_time = time.time()
-    with torch.no_grad():
-        for i, single_channel_batch in enumerate(data_loader):
-            channel = single_channel_batch[0]
-            channel_name = f"channel_{channel:04d}"
-            channel_path = output_dir / channel_name
-            channel_path.mkdir(parents=True, exist_ok=True)
+    
+    # NOTE: No outer torch.no_grad() here, so we can control gradients inside the inner function
+    for i, single_channel_batch in enumerate(data_loader):
+        channel = single_channel_batch[0]
+        channel_name = f"channel_{channel:04d}"
+        channel_path = output_dir / channel_name
+        channel_path.mkdir(parents=True, exist_ok=True)
 
-            channel_done_marker = channel_path / ".done"
-            if channel_done_marker.exists():
-                logger.info(f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping.")
+        channel_done_marker = channel_path / ".done"
+        if channel_done_marker.exists():
+            logger.info(f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping.")
+            continue
+
+        if stage_config.use_prior:
+            # Note: Changed to use dictionary access based on previous fix
+            priors = curr_prior_results[channel].get_latents(
+                device=fabric.device,
+                dtype=dtype
+            )
+        else:
+            priors = generate_random_priors_from_seeds(
+                seeds=stage_config.seeds,
+                in_channels=pipe.unet.config.in_channels,
+                sample_size=pipe.unet.sample_size,
+                device=fabric.device,
+                dtype=dtype
+            )
+
+        timesteps = set(additional_timesteps)
+        if use_active_timesteps:
+            # Note: Changed to integer key access based on previous fix
+            timesteps.update(active_timesteps[channel])
+
+        for timestep in timesteps:
+            timestep_path = channel_path / f"timestep_{timestep:04d}"
+            timestep_done_marker = timestep_path / ".done"
+            if timestep_done_marker.exists():
+                logger.info(
+                    f"Rank {fabric.global_rank}: Channel {channel}, Timestep {timestep} already processed. Skipping.")
                 continue
 
-            if stage_config.use_prior:
-                priors = curr_prior_results[channel].get_latents(
-                    device=fabric.device,
-                    dtype=dtype
+            latents = generate_deep_dreams_for_channel_timestep(
+                stage_config=stage_config,
+                model_wrapper=model_wrapper,
+                channel=channel,
+                timestep=timestep,
+                activation_type=activation_type,
+                priors=priors,
+                output_dir=timestep_path # Pass the path for intermediate results
+            )
+
+            # Final Save
+            latents = latents.detach()
+            images = model_wrapper.decode_latents(latents)
+            latents = latents.cpu()
+
+            latents_dir = timestep_path / "latents"
+            latents_dir.mkdir(parents=True, exist_ok=True)
+
+            images_dir = timestep_path / "images"
+            images_dir.mkdir(parents=True, exist_ok=True)
+
+            for j, (image, latent) in enumerate(zip(images, latents)):
+                image = (image * 255).astype(np.uint8)
+                image_pil = Image.fromarray(image)
+                image_pil.save(images_dir / f"deep_dream_image_{j:04d}.png")
+
+                save_file(
+                    {"latent": latent},
+                    latents_dir / f"deep_dream_latent_{j:04d}.safetensors"
                 )
-            else:
-                priors = generate_random_priors_from_seeds(
-                    seeds=stage_config.seeds,
-                    in_channels=pipe.unet.config.in_channels,
-                    sample_size=pipe.unet.sample_size,
-                    device=fabric.device,
-                    dtype=dtype
-                )
 
-            timesteps = set(active_timesteps[channel]) | set(additional_timesteps)
+            timestep_done_marker.touch()
 
-            for timestep in timesteps:
-                timestep_path = channel_path / f"timestep_{timestep:04d}"
-                timestep_done_marker = timestep_path / ".done"
-                if timestep_done_marker.exists():
-                    logger.info(
-                        f"Rank {fabric.global_rank}: Channel {channel}, Timestep {timestep} already processed. Skipping.")
-                    continue
+        if i % stage_config.log_every_n_steps == 0:
+            current_time = time.time()
+            elapsed_seconds = current_time - start_time
+            batches_processed = i + 1
 
-                latents = generate_deep_dreams_for_channel_timestep(
-                    stage_config=stage_config,
-                    model_wrapper=model_wrapper,
-                    channel=channel,
-                    timestep=timestep,
-                    priors=priors
-                )
+            avg_seconds_per_batch = elapsed_seconds / batches_processed if batches_processed > 0 else 0
 
-                latents = latents.detach()
-                images = model_wrapper.decode_latents(latents)
-                latents = latents.cpu()
+            remaining_batches = len(channels_dataset) - batches_processed
+            eta_seconds = remaining_batches * avg_seconds_per_batch
+            eta_str = str(datetime.timedelta(seconds=int(eta_seconds)))
+            logger.info(
+                f"Rank {fabric.global_rank}: Processed {batches_processed}/{len(channels_dataset)} channels. ETA: {eta_str}")
 
-
-                latents_dir = timestep_path / "latents"
-                latents_dir.mkdir(parents=True, exist_ok=True)
-
-                images_dir = timestep_path / "images"
-                images_dir.mkdir(parents=True, exist_ok=True)
-
-                for j, (image, latent) in enumerate(zip(images, latents)):
-                    image = (image * 255).astype(np.uint8)
-                    image_pil = Image.fromarray(image)
-                    image_pil.save(images_dir / f"deep_dream_image_{j:04d}.png")
-
-                    save_file(
-                        {"latent": latent},
-                        latents_dir / f"deep_dream_latent_{j:04d}.safetensors"
-                    )
-
-                timestep_done_marker.touch()
-
-            if i % stage_config.log_every_n_steps == 0:
-                current_time = time.time()
-                elapsed_seconds = current_time - start_time
-                batches_processed = i + 1
-
-                avg_seconds_per_batch = elapsed_seconds / batches_processed if batches_processed > 0 else 0
-
-                remaining_batches = len(channels_dataset) - batches_processed
-                eta_seconds = remaining_batches * avg_seconds_per_batch
-                eta_str = str(datetime.timedelta(seconds=int(eta_seconds)))
-                logger.info(
-                    f"Rank {fabric.global_rank}: Processed {batches_processed}/{len(channels_dataset)} channels. ETA: {eta_str}")
-
-            channel_done_marker.touch()
+        channel_done_marker.touch()
 
     logger.info(f"Rank {fabric.global_rank}: Done! (sae: {sae})")
     fabric.barrier()
-
-
 
 def run_deep_dream(config: ExperimentConfig):
     logger.info("Starting Fabric...")
@@ -303,7 +342,6 @@ def run_deep_dream(config: ExperimentConfig):
     stage_config = cast(DeepDreamStageConfig, config.stage_config)
     sae_stage_config = resolve_sae_config(stage_config)
     use_sae = config.use_sae
-
 
     if not stage_config.use_prior:
         if stage_config.seeds is None or stage_config.n_results is None:
@@ -335,4 +373,3 @@ def run_deep_dream(config: ExperimentConfig):
         )
 
     logger.info("Done!")
-

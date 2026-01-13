@@ -29,7 +29,7 @@ class ChannelPriors:
     channel_id: int
     images_with_latents: list[ImageWithLatent]
 
-    def get_latents(self, device: torch.Device, dtype: torch.dtype) -> torch.Tensor:
+    def get_latents(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         """
         Returns a tensor of shape (num_images, latent_dim...) bound to CPU
         :return:

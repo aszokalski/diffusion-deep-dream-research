@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from abc import ABC, abstractmethod
 import torch
 
@@ -8,6 +8,8 @@ class BasePenalty(BaseModel, ABC):
     """
     Base class for all penalties.
     """
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
     weight: float
 
 

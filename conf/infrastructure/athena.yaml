@@ -33,7 +33,7 @@ hydra:
     mem_gb: 125
 
     # 3. Time Limits & Reliability
-    timeout_min: 10  # 2 Hours
+    timeout_min: 10  # 2 Hours (10 mins for testing)
 
     # If the job hits the 24h limit, Submitit will auto-requeue it 3 times.
     # Your .done marker logic ensures it resumes where it left off.

@@ -245,6 +245,7 @@ class HookedModelWrapper(nn.Module):
     def activation(self,
                    *,
                    z: torch.Tensor,
+                   activation_type: CaptureHook.ActivationType,
                    channel: int,
                    timestep: int
                    ) -> torch.Tensor:
@@ -275,7 +276,7 @@ class HookedModelWrapper(nn.Module):
                 pass
 
             # mean over batch for the selected channel
-            return torch.mean(hook.get_last_activations()[timestep][:, channel])
+            return torch.mean(hook.get_last_activations()[timestep][activation_type][:, channel])
 
     def apply_scheduler_noise(self, z: torch.Tensor, *, timestep: int) -> torch.Tensor:
         noise = torch.randn_like(z)
