@@ -182,8 +182,8 @@ class ExperimentConfig:
 
     data_root: str = MISSING
 
-    assets_dir: Path = Path(f"{data_root}/assets")
-    outputs_dir: Path = Path(f"{data_root}/outputs")
+    assets_dir: str = "${data_root}/assets"
+    outputs_dir: str = "${data_root}/outputs"
 
     models: dict[str, AssetConfig] = field(default_factory=dict)
     datasets: dict[str, AssetConfig] = field(default_factory=dict)

@@ -2,18 +2,21 @@ import os
 from pathlib import Path
 from typing import Callable
 
-from diffusion_deep_dream_research.stages.s04_prior import run_prior
 import hydra
-import submitit
-from omegaconf import OmegaConf
-
-from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, register_configs, Stage
-from diffusion_deep_dream_research.stages.s00_provision import run_provision
 from loguru import logger
+from omegaconf import OmegaConf
+import submitit
 
+from diffusion_deep_dream_research.config.config_schema import (
+    ExperimentConfig,
+    Stage,
+    register_configs,
+)
+from diffusion_deep_dream_research.stages.s00_provision import run_provision
 from diffusion_deep_dream_research.stages.s01_capture import run_capture
 from diffusion_deep_dream_research.stages.s02_timestep_analysis import run_timestep_analysis
 from diffusion_deep_dream_research.stages.s03_plots import run_plots
+from diffusion_deep_dream_research.stages.s04_prior import run_prior
 from diffusion_deep_dream_research.stages.s05_deep_dream import run_deep_dream
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 
