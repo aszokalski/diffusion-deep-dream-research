@@ -1,6 +1,6 @@
 # diffusion-deep-dream-research
 
-## Setup
+## Initial Setup
 ### Local
 1. `make env`
 2. `conda activate diffusion-deep-dream-research-env`
@@ -17,3 +17,11 @@
 8. `exit`
 9. `source ./scripts/setup-plg.sh`
 10. `conda activate diffusion-deep-dream-research-env`
+
+## When you come back
+### Local
+1. `conda activate diffusion-deep-dream-research-env`
+
+### PLGrid
+1. `source ./scripts/setup-plg.sh`
+2. `conda activate diffusion-deep-dream-research-env`
