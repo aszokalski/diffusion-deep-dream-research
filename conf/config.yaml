@@ -1,0 +1,39 @@
+defaults:
+  - base_config
+  - models/stable_diffusion_v_1_4@models.stable_diffusion_v_1_4
+  - models/saeuron@models.saeuron
+  - models/style50@models.style50
+  - datasets/unlearn_canvas@datasets.unlearn_canvas
+  - stages/provision@stages.provision
+  - stages/capture@stages.capture
+  - stages/timestep_analysis@stages.timestep_analysis
+  - stages/plots@stages.plots
+  - stages/prior@stages.prior
+  - stages/deep_dream@stages.deep_dream
+  - infrastructure: athena
+  - _self_
+
+project_name: "diffusion-deep-dream-research"
+
+experiment_name: "default_experiment"
+
+model_to_analyse: "${models.style50}"
+target_layer_name: "up_blocks.1.attentions.1"
+sae: "${models.saeuron}"
+use_sae: true
+
+stage: ???
+
+# Hydra run and sweep output directories
+hydra:
+  run:
+    dir: ${outputs_dir}/${experiment_name}/${stage}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+  sweep:
+    # Multirun Output (Root):
+    dir: ${outputs_dir}/${experiment_name}/${stage}/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    # Multirun Subdir (Per Job):
+    subdir: ${hydra.job.num}
+
+  job:
+    chdir: true

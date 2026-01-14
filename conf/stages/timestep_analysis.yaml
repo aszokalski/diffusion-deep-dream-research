@@ -1,0 +1,12 @@
+defaults:
+   - timestep_analysis_schema
+   - _self_
+
+name: "timestep_analysis"
+top_k: 20
+total_timesteps: 1000
+peak_threshold: 0.001   # Minimum value for a peak to be considered
+peak_separation: 100     # How far apart peaks must be to be considered different
+top_peak_count: 3
+
+capture_results_dir: e0/Stage.capture/multirun/2026-01-05/19-45-02/0

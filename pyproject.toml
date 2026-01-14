@@ -16,38 +16,64 @@ classifiers = [
     "License :: OSI Approved :: BSD License"
 ]
 dependencies = [
-    "accelerate>=1.12.0",
-    "diffusers>=0.35.2",
-    "graphviz>=0.21",
-    "graphviz-anywidget>=0.8.0",
+    "accelerate",
+    "datasets",
+    "diffusers",
+    "einops",
+    "gdown",
+    "graphviz",
+    "hydra-core",
+    "hydra-submitit-launcher",
+    "imageio",
     "ipython",
-    "ipywidgets>=8.1.8",
-    "jupyter>=1.1.1",
+    "ipywidgets",
+    "jaxtyping",
+    "jupyter",
     "jupyterlab",
+    "kornia",
+    "lightning",
     "loguru",
     "matplotlib",
     "mkdocs",
+    "natsort",
     "notebook",
     "numpy",
-    "onnx>=1.19.1",
-    "onnxscript>=0.5.6",
-    "opencv-python>=4.11.0.86",
+    "onnx",
+    "onnxscript",
+    "opencv-python",
     "pandas",
     "pip",
+    "pydantic",
+    "pydantic-settings",
     "pytest",
     "python-dotenv",
     "ruff",
+    "safetensors",
     "scikit-learn",
-    "torch>=2.9.1",
-    "torchinfo>=1.8.0",
-    "torchview>=0.2.7",
-    "torchvision>=0.24.1",
+    "scipy",
+    "simple-parsing",
+    "submitit",
+    "torch",
+    "torch-lucent",
+    "torchinfo",
+    "torchview",
+    "torchvision",
     "tqdm",
-    "transformers>=4.57.3",
+    "transformers",
     "typer",
+    "torch-lucent @ git+https://github.com/aszokalski/lucent.git@custom-device-support"
 ]
 requires-python = "~=3.12.0"
 
+[tool.setuptools.packages.find]
+where = ["."]  # Look in the root directory
+# IMPORTANT: Add the name you want to use for importing the submodule here
+include = ["diffusion_deep_dream_research", "submodules"]
+
+# 2. Map the import name to the actual directory
+[tool.setuptools.package-dir]
+"diffusion_deep_dream_research" = "diffusion_deep_dream_research"
+"submodules" = "submodules"
 
 [tool.ruff]
 line-length = 99
@@ -61,3 +87,13 @@ extend-select = ["I"]  # Add import sorting
 known-first-party = ["diffusion_deep_dream_research"]
 force-sort-within-sections = true
 
+[tool.pyright]
+reportPrivateImportUsage = "none"
+
+[tool.ty.rules]
+# Ignore unknown signature of callables. We are using third-party libraries which lack typing.
+call-top-callable = "ignore" 
+
+
+[tool.ty.src]
+include = ["diffusion_deep_dream_research", "tests"]

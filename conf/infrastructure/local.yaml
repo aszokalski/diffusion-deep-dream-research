@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - override /hydra/launcher: submitit_local
+  - _self_
+
+infrastructure_name: "local"
+
+data_root: "${project_root}"
+
+fabric:
+  accelerator: "cpu"
+
+stages:
+  capture:
+    num_images_per_prompt: 1
+    batch_size: 1
+    num_workers: 1
+    log_every_n_steps: 1
+
+

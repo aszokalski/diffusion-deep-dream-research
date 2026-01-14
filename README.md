@@ -1,61 +1,27 @@
 # diffusion-deep-dream-research
 
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
-</a>
+## Initial Setup
+### Local
+1. `make env`
+2. `conda activate diffusion-deep-dream-research-env`
+3. `make install`
 
-The goal of this project is to develop a method to generate monosemantic dDeepDream representations of neurons in diffusion models.
+### PLGrid
+1. `chmod +x ./scripts/start-interactive-session.sh`
+2. `chmod +x ./scripts/setup-plg.sh`
+3. `./scripts/start-interactive-session.sh`
+4. `source ./scripts/setup-plg.sh`
+5. `make env`
+6. `conda activate diffusion-deep-dream-research-env`
+7. `make install`
+8. `exit`
+9. `source ./scripts/setup-plg.sh`
+10. `conda activate diffusion-deep-dream-research-env`
 
-## Project Organization
+## When you come back
+### Local
+1. `conda activate diffusion-deep-dream-research-env`
 
-```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries
-│
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         diffusion_deep_dream_research and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── diffusion_deep_dream_research   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes diffusion_deep_dream_research a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
-```
-
---------
-
+### PLGrid
+1. `source ./scripts/setup-plg.sh`
+2. `conda activate diffusion-deep-dream-research-env`

@@ -1,0 +1,67 @@
+defaults:
+   - deep_dream_schema
+   - _self_
+
+name: "deep_dream"
+timesteps:
+  - 0
+  # - "active_timesteps"
+  - "activity_peaks"
+
+# This is only for small tests
+start_channel: 0
+end_channel: 2
+
+
+see_through_schedule_noise: true
+
+# REGULARISATION PARAMETERS
+use_prior: true
+
+total_variation_penalty_weight: 5.0
+#total_variation_penalty_weight_sae: 0.00005
+
+range_penalty_weight: 1.0
+#range_penalty_weight_sae: 1.0
+
+moment_penalty_weight: 0.5
+#moment_penalty_weight_sae: 0.5
+
+gradient_smoothing_sigma_start: 0.5
+gradient_smoothing_sigma_end: 0.0
+
+use_decorrelated_space: true
+#use_decorrelated_space_sae: true
+
+jitter_max: 2
+#jitter_max_sae: 2
+
+rotate_max: 20.0
+#rotate_max_sae: 20.0
+
+scale_max: 1.05
+#scale_max_sae: 1.05
+
+
+# OPTIMIZATION PARAMETERS
+num_steps: 100 # or 200
+#num_steps_sae: 100
+
+learning_rate: 0.05 # or 0.05
+#learning_rate_sae: 0.05
+
+# For no prior:
+#seeds:
+#   - 1024
+#   - 1111
+#   - 4359
+#   - 3248
+#   - 1026
+#   -
+#n_results: 5
+
+log_every_n_steps: 10
+intermediate_opt_results_every_n_steps: 10
+
+timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-05/20-34-31/0
+prior_results_dir: steering_strength_scale_sweep/Stage.prior/multirun/2026-01-06/18-40-48/0
