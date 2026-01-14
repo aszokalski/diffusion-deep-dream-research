@@ -5,12 +5,12 @@ defaults:
 name: "deep_dream"
 timesteps:
   - 0
-  - "active_timesteps"
-  - "active_timesteps"
+  # - "active_timesteps"
+  - "activity_peaks"
 
 # This is only for small tests
 start_channel: 0
-end_channel: 30
+end_channel: 2
 
 
 see_through_schedule_noise: true
@@ -18,7 +18,7 @@ see_through_schedule_noise: true
 # REGULARISATION PARAMETERS
 use_prior: true
 
-total_variation_penalty_weight: 0.00005 # or 0.0001 or 0.00001
+total_variation_penalty_weight: 5.0
 #total_variation_penalty_weight_sae: 0.00005
 
 range_penalty_weight: 1.0

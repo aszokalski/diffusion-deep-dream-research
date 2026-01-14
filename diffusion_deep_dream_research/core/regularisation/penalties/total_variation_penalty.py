@@ -19,6 +19,6 @@ class TotalVariationPenalty(BasePenalty):
         """
         # latents: (batch_size, channels, height, width)
 
-        tv_h = torch.abs(latents[:, :, 1:, :] - latents[:, :, :-1, :]).sum()
-        tv_w = torch.abs(latents[:, :, :, 1:] - latents[:, :, :, :-1]).sum()
+        tv_h = torch.abs(latents[:, :, 1:, :] - latents[:, :, :-1, :]).mean()
+        tv_w = torch.abs(latents[:, :, :, 1:] - latents[:, :, :, :-1]).mean()
         return tv_h + tv_w

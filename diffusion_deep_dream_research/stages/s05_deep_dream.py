@@ -100,12 +100,10 @@ def generate_deep_dreams_for_channel_timestep(
             step_stats: Dict[str, Any] = {
                 "step": step,
                 "activation": activation.item(),
-                "base_loss": loss.item(),
                 "penalties": {}
             }
 
             for penalty in penalties:
-                # FIX: Apply penalty to 'latents' (the moving tensor), not 'priors' (the static original)
                 penalty_value = penalty(latents) 
                 loss = loss + penalty_value
                 step_stats["penalties"][penalty.__class__.__name__] = penalty_value.item()
@@ -197,6 +195,7 @@ def generate_deep_dreams(
     # Data and parameters setup
     suffix = "_sae" if sae else ""
     active_timesteps_json_filename = f"active_timesteps{suffix}.json"
+    activity_peaks_json_filename = f"activity_peaks{suffix}.json"
 
     logger.info(f"Loading analysis data from {timesteps_analysis_results_abs_path}...")
 
@@ -204,7 +203,15 @@ def generate_deep_dreams(
     with open(timesteps_analysis_results_abs_path / active_timesteps_json_filename, "r") as f:
         active_timesteps = json.load(f)
 
-    use_active_timesteps = Timesteps.active_timesteps in stage_config.timesteps
+    with open(timesteps_analysis_results_abs_path / activity_peaks_json_filename, "r") as f:
+        activity_peaks = json.load(f)
+
+    extend_timesteps_map = None
+    if Timesteps.activity_peaks in stage_config.timesteps:
+        extend_timesteps_map = activity_peaks
+    elif Timesteps.active_timesteps in stage_config.timesteps:
+        extend_timesteps_map = active_timesteps
+
     additional_timesteps = [
         t for t in stage_config.timesteps
         if isinstance(t, int)
@@ -265,9 +272,8 @@ def generate_deep_dreams(
             )
 
         timesteps = set(additional_timesteps)
-        if use_active_timesteps:
-            # Note: Changed to integer key access based on previous fix
-            timesteps.update(active_timesteps[channel])
+        if extend_timesteps_map is not None:
+            timesteps.update(extend_timesteps_map[channel])
 
         for timestep in timesteps:
             timestep_path = channel_path / f"timestep_{timestep:04d}"

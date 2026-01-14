@@ -118,7 +118,8 @@ def generate_priors(
                 steer_timesteps = active_timesteps[channel]
             elif stage_config.timesteps == Timesteps.all_timesteps:
                 steer_timesteps = sorted_timesteps
-            
+            else:
+                raise ValueError(f"Unsupported timesteps option: {stage_config.timesteps}")
 
             if sae and stage_config.steer_strength_scale_sae is not None:
                 steer_strength = stage_config.steer_strength_scale_sae

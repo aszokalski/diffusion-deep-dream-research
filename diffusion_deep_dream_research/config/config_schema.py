@@ -71,6 +71,7 @@ class PlotsStageConfig(StageConfig):
 class Timesteps(str, Enum):
     active_timesteps = "active_timesteps"
     all_timesteps = "all_timesteps"
+    activity_peaks = "activity_peaks"
 
 @dataclass
 class PriorStageConfig(StageConfig):
