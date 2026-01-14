@@ -20,7 +20,7 @@ exploration/06-entangled-timestep-analysis/channel_plots
 __pycache__/
 *.py[cod]
 *$py.class
-
+plgaszokalski.code-workspace
 # C extensions
 *.so
 
