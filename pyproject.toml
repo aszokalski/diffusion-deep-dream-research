@@ -86,3 +86,14 @@ extend-select = ["I"]  # Add import sorting
 [tool.ruff.lint.isort]
 known-first-party = ["diffusion_deep_dream_research"]
 force-sort-within-sections = true
+
+[tool.pyright]
+reportPrivateImportUsage = "none"
+
+[tool.ty.rules]
+# Ignore unknown signature of callables. We are using third-party libraries which lack typing.
+call-top-callable = "ignore" 
+
+
+[tool.ty.src]
+include = ["diffusion_deep_dream_research", "tests"]

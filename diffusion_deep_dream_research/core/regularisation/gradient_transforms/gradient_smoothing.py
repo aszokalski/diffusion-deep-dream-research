@@ -1,9 +1,10 @@
+from pydantic import PrivateAttr
 import torch
 import torchvision.transforms.functional as TF
-from pydantic import PrivateAttr
 
-from diffusion_deep_dream_research.core.regularisation.gradient_transforms.base_gradient_transform import \
-    BaseGradientTransform
+from diffusion_deep_dream_research.core.regularisation.gradient_transforms.base_gradient_transform import (
+    BaseGradientTransform,
+)
 
 
 class GradientSmoother(BaseGradientTransform):
@@ -12,8 +13,7 @@ class GradientSmoother(BaseGradientTransform):
     sigma_end: float
     num_steps: int
 
-    _sigma : float = PrivateAttr(0.0)
-
+    _sigma: float = PrivateAttr(0.0)
 
     def update_current_step(self, step: int):
         progress = step / max(self.num_steps - 1, 1)
@@ -22,5 +22,5 @@ class GradientSmoother(BaseGradientTransform):
     def __call__(self, grad: torch.Tensor) -> torch.Tensor:
         if self._sigma <= 0.0:
             return grad
-
-        return TF.gaussian_blur(grad, kernel_size=self.kernel_size, sigma=self._sigma)
+        # Typing for this function in torchvision is broken, hence the ignore
+        return TF.gaussian_blur(grad, kernel_size=self.kernel_size, sigma=self._sigma)  # ty:ignore[invalid-argument-type]

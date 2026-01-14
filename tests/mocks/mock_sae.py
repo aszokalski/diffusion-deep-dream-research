@@ -1,6 +1,5 @@
-import torch
-
 from submodules.SAeUron.SAE.sae import Sae
+import torch
 
 
 class MockSae(Sae):
@@ -17,6 +16,7 @@ class MockSae(Sae):
     def pre_acts(self, x):
         return x @ self.W_enc
 
-    def select_topk(self, acts, k=32):
-        return torch.topk(acts, k=k)
-
+    def select_topk(self, latents, k=None, batch_size=None):
+        if k is None:
+            k = self.hidden_dim
+        return torch.topk(latents, k=k)

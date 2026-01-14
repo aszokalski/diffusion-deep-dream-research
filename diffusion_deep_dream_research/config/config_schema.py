@@ -13,16 +13,18 @@ class AssetSourceType(str, Enum):
     huggingface = "huggingface"
     gdrive = "gdrive"
 
+
 class AssetType(str, Enum):
     model = "model"
     dataset = "dataset"
+
 
 @dataclass
 class AssetConfig:
     name: str = MISSING
     source_type: AssetSourceType = MISSING
     url: str = MISSING
-    path: Path = "${assets_dir}/${.name}" # pyright: ignore[reportAssignmentType]
+    path: Path = "${assets_dir}/${.name}"  # type: ignore[reportAssignmentType]
     asset_type: AssetType = MISSING
 
 
@@ -34,13 +36,16 @@ class Stage(str, Enum):
     prior = "prior"
     deep_dream = "deep_dream"
 
+
 @dataclass
 class StageConfig:
     name: str = MISSING
 
+
 @dataclass
 class ProvisionStageConfig(StageConfig):
     name: str = "provision"
+
 
 @dataclass
 class CaptureStageConfig(StageConfig):
@@ -52,6 +57,7 @@ class CaptureStageConfig(StageConfig):
     log_every_n_steps: int = MISSING
     dev_n_prompts: Optional[int] = None
 
+
 @dataclass
 class TimestepAnalysisStageConfig(StageConfig):
     name: str = "timestep_analysis"
@@ -62,16 +68,19 @@ class TimestepAnalysisStageConfig(StageConfig):
     peak_separation: int = MISSING
     top_peak_count: int = MISSING
 
+
 @dataclass
 class PlotsStageConfig(StageConfig):
     name: str = "plots"
     timestep_analysis_results_dir: Path = MISSING
     frame_duration: float = MISSING
 
+
 class Timesteps(str, Enum):
     active_timesteps = "active_timesteps"
     all_timesteps = "all_timesteps"
     activity_peaks = "activity_peaks"
+
 
 @dataclass
 class PriorStageConfig(StageConfig):
@@ -86,6 +95,7 @@ class PriorStageConfig(StageConfig):
     steer_strength_scale: float = MISSING
     steer_strength_scale_sae: Optional[float] = None
     log_every_n_steps: int = MISSING
+
 
 @dataclass
 class DeepDreamStageConfig(StageConfig):
@@ -150,15 +160,16 @@ class DeepDreamStageConfig(StageConfig):
 
     # Only used if not using prior.
     # Otherwise, using the number of results from prior.
-    n_results: Optional[int] = None
     seeds: Optional[list[int]] = None
 
     log_every_n_steps: int = MISSING
     intermediate_opt_results_every_n_steps: int = MISSING
 
+
 @dataclass
 class FabricConfig:
     accelerator: str
+
 
 @dataclass
 class ExperimentConfig:
@@ -171,8 +182,8 @@ class ExperimentConfig:
 
     data_root: str = MISSING
 
-    assets_dir: Path = "${data_root}/assets"
-    outputs_dir: Path = "${data_root}/outputs"
+    assets_dir: Path = Path(f"{data_root}/assets")
+    outputs_dir: Path = Path(f"{data_root}/outputs")
 
     models: dict[str, AssetConfig] = field(default_factory=dict)
     datasets: dict[str, AssetConfig] = field(default_factory=dict)
@@ -186,7 +197,7 @@ class ExperimentConfig:
     use_sae: bool = MISSING
 
     stage: Stage = MISSING
-    stage_config: StageConfig = "${stages.${stage}}"
+    stage_config: StageConfig = "${stages.${stage}}"  # type: ignore[reportAssignmentType]
 
 
 def register_configs():

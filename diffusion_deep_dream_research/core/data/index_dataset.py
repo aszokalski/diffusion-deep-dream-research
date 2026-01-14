@@ -10,10 +10,9 @@ class IndexDataset(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, idx):
-        if idx < 0 or idx >= self.length:
+    def __getitem__(self, index):
+        if index < 0 or index >= self.length:
             raise IndexError("Index out of bounds")
 
-        number = self.start + idx
-
+        number = self.start + index
         return number

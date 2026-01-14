@@ -32,5 +32,5 @@ class UniquePromptDataset(Dataset):
     def __len__(self):
         return len(self.prompts)
 
-    def __getitem__(self, idx):
-        return self.prompts[idx]
+    def __getitem__(self, index):
+        return self.prompts[index]

@@ -1,15 +1,16 @@
 from enum import Enum
-from typing import Optional, Any, Callable, Union
+from typing import Any, Callable, Optional
 
+from pydantic import BaseModel, ConfigDict, PrivateAttr
+from submodules.SAeUron.SAE.sae import Sae
 import torch
-from pydantic import PrivateAttr, BaseModel, ConfigDict
 import torch.nn as nn
 
 from diffusion_deep_dream_research.core.hooks.base_hook import BaseHook, EarlyExit
-from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import ModifiedDiffusionPipelineAdapter
+from diffusion_deep_dream_research.core.model.modified_diffusion_pipeline_adapter import (
+    ModifiedDiffusionPipelineAdapter,
+)
 from diffusion_deep_dream_research.utils.torch_utils import reshape_to_batch_spatial_channels
-
-from submodules.SAeUron.SAE.sae import Sae
 
 
 class CaptureHook(BaseHook):
@@ -19,6 +20,7 @@ class CaptureHook(BaseHook):
     NOTE: This hook completely ignores the spatial dimensions of the activations.
     It computes the mean across all spatial dimensions and batches.
     """
+
     timesteps: list[int]
     detach: bool
     early_exit: bool
@@ -65,7 +67,6 @@ class CaptureHook(BaseHook):
             # mean over spatial dimensions
             activation_dict[self.ActivationType.ENCODED] = torch.mean(encoded_acts, dim=1)
 
-
         return activation_dict  # (batch_size, activation_type, channels or encoded_channels,)
 
     def get_last_activations(self) -> dict[int, dict[ActivationType, torch.Tensor]]:
@@ -81,10 +82,12 @@ class CaptureHook(BaseHook):
     def clear_activations(self):
         self._activations = {}
 
+
 class CaptureHookFactory(BaseModel):
     """
     A Factory class for partial construction of CaptureHook instances.
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     sae: Optional[Sae] = None
@@ -92,17 +95,18 @@ class CaptureHookFactory(BaseModel):
 
     def create(self, *, timesteps: list[int], early_exit: bool, detach: bool) -> CaptureHook:
         if self.sae is not None:
+            sae = self.sae
             return CaptureHook(
                 detach=detach,
                 early_exit=early_exit,
                 timesteps=timesteps,
                 pipe_adapter=self.pipe_adapter,
-                activation_encode=lambda x: self.sae.pre_acts(x),
+                activation_encode=lambda x: sae.pre_acts(x),
             )
         else:
             return CaptureHook(
                 detach=detach,
                 early_exit=early_exit,
                 timesteps=timesteps,
-                pipe_adapter=self.pipe_adapter
+                pipe_adapter=self.pipe_adapter,
             )

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-import torchvision.transforms.functional as TF
-import torch
 import random
+
+import torch
+import torchvision.transforms.functional as TF
 
 
 @dataclass
@@ -9,6 +10,7 @@ class LatentAugmenter:
     """
     Transformation robustness augmenter for latents.
     """
+
     jitter_max: int = 0
     rotate_max: float = 0.0
     scale_max: float = 1.0
@@ -23,7 +25,11 @@ class LatentAugmenter:
             angle = random.uniform(-self.rotate_max, self.rotate_max)
             scale = random.uniform(1.0, self.scale_max)
             latents = TF.affine(
-                latents, angle=angle, translate=[0, 0], scale=scale, shear=0,
-                interpolation=TF.InterpolationMode.BILINEAR
+                latents,
+                angle=angle,
+                translate=[0, 0],
+                scale=scale,
+                shear=0,  # ty:ignore[invalid-argument-type] looks like a typing bug in torchvision
+                interpolation=TF.InterpolationMode.BILINEAR,
             )
         return latents

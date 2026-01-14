@@ -1,10 +1,11 @@
 from typing import Any
 
-import torch
 from pydantic import PrivateAttr
+import torch
 
-from diffusion_deep_dream_research.core.regularisation.gradient_transforms.base_gradient_transform import \
-    BaseGradientTransform
+from diffusion_deep_dream_research.core.regularisation.gradient_transforms.base_gradient_transform import (
+    BaseGradientTransform,
+)
 
 
 class GradientPreconditioner(BaseGradientTransform):
@@ -14,22 +15,24 @@ class GradientPreconditioner(BaseGradientTransform):
     This encourages the model to make larger updates to low-frequency components,
     preventing high-frequency noise.
     """
+
     latent_height: int
     latent_width: int
     device: torch.device
 
-    _scale: torch.Tensor = PrivateAttr(1.0)
+    _scale: torch.Tensor = PrivateAttr(torch.tensor([]))
 
     def model_post_init(self, context: Any, /) -> None:
         Y, X = torch.meshgrid(
             torch.arange(self.latent_height, device=self.device),
             torch.arange(self.latent_width, device=self.device),
-            indexing="ij")
+            indexing="ij",
+        )
 
         X = X - self.latent_width // 2
         Y = Y - self.latent_height // 2
 
-        freq_sq = X ** 2 + Y ** 2
+        freq_sq = X**2 + Y**2
         freqs = torch.sqrt(freq_sq.float())
 
         scale_pre_fft = 1.0 / (freqs + 1.0)
@@ -42,6 +45,6 @@ class GradientPreconditioner(BaseGradientTransform):
 
         grad_decorrelated = torch.fft.ifft2(grad_fft_scaled).real
 
-        norm_factor = grad.std() / (grad_decorrelated.std() + 1e-8) # prevent division by zero
+        norm_factor = grad.std() / (grad_decorrelated.std() + 1e-8)  # prevent division by zero
 
         return grad_decorrelated.to(grad.dtype) * norm_factor

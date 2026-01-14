@@ -1,28 +1,29 @@
+import json
+from pathlib import Path
+import pickle
 import random
 import textwrap
-from pathlib import Path
-from typing import cast, Optional, Tuple
+from typing import Optional, Tuple, cast
 
 import imageio
-import numpy as np
-import pickle
-import json
+from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
+import numpy as np
+from PIL import Image
 from scipy.interpolate import interp1d
 from tqdm import tqdm
-from loguru import logger
-from PIL import Image
 
-from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, PlotsStageConfig, \
-    TimestepAnalysisStageConfig, Stage
+from diffusion_deep_dream_research.config.config_schema import (
+    ExperimentConfig,
+    PlotsStageConfig,
+    Stage,
+    TimestepAnalysisStageConfig,
+)
 
 
 def get_random_example(
-        dataset_examples: dict,
-        channel_idx: int,
-        timestep: int,
-        project_root: Path
+    dataset_examples: dict, channel_idx: int, timestep: int, project_root: Path
 ) -> Tuple[Optional[Image.Image], str]:
     c_key = str(channel_idx)
     t_key = str(timestep)
@@ -49,20 +50,19 @@ def get_random_example(
         return img, prompt
     except Exception as e:
         logger.warning(f"Failed to open image {image_path}: {e}")
-        return None, f"Error loading image"
+        return None, "Error loading image"
 
 
 def generate_plots(
-        *,
-        stage_config: PlotsStageConfig,
-        timestep_analysis_config: TimestepAnalysisStageConfig,
-        timesteps_analysis_results_abs_path: Path,
-        project_root: Path,
-        sae: bool
+    *,
+    stage_config: PlotsStageConfig,
+    timestep_analysis_config: TimestepAnalysisStageConfig,
+    timesteps_analysis_results_abs_path: Path,
+    project_root: Path,
+    sae: bool,
 ) -> None:
     suffix = "_sae" if sae else ""
     pkl_filename = f"frequency_in_top_k_sorted_timesteps_max_activation{suffix}.pkl"
-    active_timesteps_json_filename = f"active_timesteps{suffix}.json"
     activity_peaks_json_filename = f"activity_peaks{suffix}.json"
     dataset_examples_json_filename = f"dataset_examples{suffix}.json"
 
@@ -88,7 +88,9 @@ def generate_plots(
 
     active_channels = []
 
-    for channel_idx in tqdm(range(n_channels), desc="Generating GIFs", mininterval=10.0, ascii=True, ncols=80):
+    for channel_idx in tqdm(
+        range(n_channels), desc="Generating GIFs", mininterval=10.0, ascii=True, ncols=80
+    ):
         channel_name = f"channel_{channel_idx:04d}"
 
         if np.sum(frequency_in_top_k[channel_idx]) == 0:
@@ -98,7 +100,9 @@ def generate_plots(
 
         y_observed = frequency_in_top_k[channel_idx]
 
-        f_interp = interp1d(x_observed, y_observed, kind='linear', bounds_error=False, fill_value=0)
+        f_interp = interp1d(
+            x_observed, y_observed, kind="linear", bounds_error=False, fill_value=0
+        )
         y_full = f_interp(x_full)
 
         channel_peaks = activity_peaks[channel_idx]
@@ -114,16 +118,29 @@ def generate_plots(
 
         for t_target_peak in iter_peaks:
             fig = plt.figure(figsize=(16, 10))
-            gs = GridSpec(2, 2, figure=fig, width_ratios=[2, 1], height_ratios=[1, 1],
-                          left=0.05, right=0.95, top=0.92, bottom=0.08, wspace=0.15, hspace=0.25)
+            gs = GridSpec(
+                2,
+                2,
+                figure=fig,
+                width_ratios=[2, 1],
+                height_ratios=[1, 1],
+                left=0.05,
+                right=0.95,
+                top=0.92,
+                bottom=0.08,
+                wspace=0.15,
+                hspace=0.25,
+            )
 
             ax_up = fig.add_subplot(gs[0, 0])
             ax_down = fig.add_subplot(gs[1, 0])
             ax_img = fig.add_subplot(gs[:, 1])
 
-            ax_up.plot(x_observed, y_observed, 'o', label='Observed', alpha=0.4, color='gray')
-            ax_up.plot(x_full, y_full, '-', label='Interpolated', alpha=0.9, color='#2ecc71', linewidth=2)
-            ax_up.fill_between(x_full, 0, y_full, alpha=0.15, color='#2ecc71')
+            ax_up.plot(x_observed, y_observed, "o", label="Observed", alpha=0.4, color="gray")
+            ax_up.plot(
+                x_full, y_full, "-", label="Interpolated", alpha=0.9, color="#2ecc71", linewidth=2
+            )
+            ax_up.fill_between(x_full, 0, y_full, alpha=0.15, color="#2ecc71")
 
             for t_peak in channel_peaks:
                 if 0 <= t_peak < len(y_full):
@@ -133,30 +150,52 @@ def generate_plots(
                         f"T={t_peak}",
                         xy=(t_peak, val_peak),
                         xytext=(0, -10),
-                        textcoords='offset points',
-                        ha='center',
-                        va='top',
+                        textcoords="offset points",
+                        ha="center",
+                        va="top",
                         fontsize=10,
-                        fontweight='bold',
-                        color='black'
+                        fontweight="bold",
+                        color="black",
                     )
-                    ax_up.plot(t_peak, val_peak, 'x', markersize=10, markeredgewidth=3, color='black', zorder=11)
+                    ax_up.plot(
+                        t_peak,
+                        val_peak,
+                        "x",
+                        markersize=10,
+                        markeredgewidth=3,
+                        color="black",
+                        zorder=11,
+                    )
 
                     if t_peak == t_target_peak:
-                        ax_up.plot(t_peak, val_peak, 'o', color='#e74c3c', markersize=15,
-                                   zorder=10, alpha=0.6)
-
+                        ax_up.plot(
+                            t_peak,
+                            val_peak,
+                            "o",
+                            color="#e74c3c",
+                            markersize=15,
+                            zorder=10,
+                            alpha=0.6,
+                        )
 
             ax_up.set_title(f"Channel {channel_idx} Activity Profile", fontsize=14)
             ax_up.set_ylabel("Freq in Top-K")
-            ax_up.axhline(0, color='black', linewidth=1, alpha=0.3)
+            ax_up.axhline(0, color="black", linewidth=1, alpha=0.3)
             ax_up.invert_xaxis()
             ax_up.grid(True, alpha=0.2)
             max_activation_at_timestep = max_activation[channel_idx]
-            ax_down.plot(sorted_timesteps, max_activation_at_timestep, '-', color='#3498db', linewidth=2)
+            ax_down.plot(
+                sorted_timesteps, max_activation_at_timestep, "-", color="#3498db", linewidth=2
+            )
 
             if t_target_peak in x_full:
-                ax_down.axvline(t_target_peak, color='#e74c3c', linestyle='--', alpha=0.8, label=f'T={t_target_peak}')
+                ax_down.axvline(
+                    t_target_peak,
+                    color="#e74c3c",
+                    linestyle="--",
+                    alpha=0.8,
+                    label=f"T={t_target_peak}",
+                )
 
             ax_down.set_title(f"Channel {channel_idx} Max Activation", fontsize=14)
             ax_down.set_xlabel("Timestep")
@@ -164,19 +203,26 @@ def generate_plots(
             ax_down.invert_xaxis()
             ax_down.grid(True, alpha=0.2)
 
-            img, prompt_text = get_random_example(dataset_examples, channel_idx, t_target_peak, project_root)
+            img, prompt_text = get_random_example(
+                dataset_examples, channel_idx, t_target_peak, project_root
+            )
 
             if img:
                 ax_img.imshow(img)
-                ax_img.axis('off')
+                ax_img.axis("off")
             else:
-                ax_img.text(0.5, 0.5, "Image Not Available", ha='center', va='center', fontsize=16)
-                ax_img.axis('off')
+                ax_img.text(0.5, 0.5, "Image Not Available", ha="center", va="center", fontsize=16)
+                ax_img.axis("off")
 
             wrapped_prompt = "\n".join(textwrap.wrap(f"{prompt_text}", width=80))
-            ax_img.set_title(wrapped_prompt, fontsize=12, y=-0.15, loc='center', wrap=True)
+            ax_img.set_title(wrapped_prompt, fontsize=12, y=-0.15, loc="center", wrap=True)
 
             fig.canvas.draw()
+
+            assert hasattr(fig.canvas, "renderer"), "Figure canvas has no renderer."
+            assert hasattr(fig.canvas.renderer, "buffer_rgba") and callable(
+                fig.canvas.renderer.buffer_rgba
+            ), "Figure canvas renderer has no callable buffer_rgba method."
             image_from_plot = np.array(fig.canvas.renderer.buffer_rgba())
 
             if image_from_plot.shape[2] == 4:
@@ -201,20 +247,23 @@ def generate_plots(
 
 def run_plots(config: ExperimentConfig):
     stage_config = cast(PlotsStageConfig, config.stage_config)
-    timestep_analysis_config = cast(TimestepAnalysisStageConfig, config.stages[Stage.timestep_analysis])
+    timestep_analysis_config = cast(
+        TimestepAnalysisStageConfig, config.stages[Stage.timestep_analysis]
+    )
     use_sae = config.use_sae
 
-    timesteps_analysis_results_abs_path = config.outputs_dir / stage_config.timestep_analysis_results_dir
+    timesteps_analysis_results_abs_path = (
+        config.outputs_dir / stage_config.timestep_analysis_results_dir
+    )
 
-    logger.info(
-        f"Using timestep analysis results from: {timesteps_analysis_results_abs_path}")
+    logger.info(f"Using timestep analysis results from: {timesteps_analysis_results_abs_path}")
 
     generate_plots(
         stage_config=stage_config,
         timestep_analysis_config=timestep_analysis_config,
         timesteps_analysis_results_abs_path=timesteps_analysis_results_abs_path,
         project_root=config.project_root,
-        sae=False
+        sae=False,
     )
 
     if use_sae:
@@ -223,5 +272,5 @@ def run_plots(config: ExperimentConfig):
             timestep_analysis_config=timestep_analysis_config,
             timesteps_analysis_results_abs_path=timesteps_analysis_results_abs_path,
             project_root=config.project_root,
-            sae=True
+            sae=True,
         )
