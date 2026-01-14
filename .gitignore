@@ -10,7 +10,9 @@
 # vim
 *.swp
 *.swo
+
 .idea/
+.vscode/
 exploration/06-entangled-timestep-analysis/channel_plots
 ## https://github.com/github/gitignore/blob/e8554d85bf62e38d6db966a50d2064ac025fd82a/Python.gitignore
 
