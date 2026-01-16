@@ -116,6 +116,7 @@ class DeepDreamStageConfig(StageConfig):
     end_channel: Optional[int] = None
 
     timesteps: list[Union[int, str]] = MISSING
+    use_just_one_timestep: Optional[bool] = False
 
     # This is not really a regularization,
     # but it is similar to transformation robustness.
@@ -161,6 +162,7 @@ class DeepDreamStageConfig(StageConfig):
     # Only used if not using prior.
     # Otherwise, using the number of results from prior.
     seeds: Optional[list[int]] = None
+    n_results: Optional[int] = None
 
     log_every_n_steps: int = MISSING
     intermediate_opt_results_every_n_steps: int = MISSING

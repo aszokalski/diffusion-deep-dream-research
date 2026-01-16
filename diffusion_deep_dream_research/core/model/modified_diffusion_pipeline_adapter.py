@@ -32,7 +32,7 @@ class ModifiedDiffusionPipelineAdapter:
             pipe.unet.current_timestep = t_val  # ty:ignore[unresolved-attribute]
             return original_forward(sample, timestep, encoder_hidden_states, **kwargs)
 
-        pipe.unet.forward = intercepted_forward  # ty:ignore[invalid-assignment]
+        pipe.unet.forward = intercepted_forward
         pipe.safety_checker = None  # ty:ignore[invalid-assignment]
 
         self._pipe = pipe

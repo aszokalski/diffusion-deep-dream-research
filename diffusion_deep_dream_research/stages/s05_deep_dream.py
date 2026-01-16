@@ -55,7 +55,7 @@ def generate_deep_dreams_for_channel_timestep(
     timestep: int,
     activation_type: CaptureHook.ActivationType,
     priors: torch.Tensor,
-    output_dir: Path,  # Added output_dir to save intermediate results
+    output_dir: Path,
 ) -> torch.Tensor:
     latents = priors.detach().clone().float()
     latents.requires_grad_(True)
@@ -108,7 +108,6 @@ def generate_deep_dreams_for_channel_timestep(
 
             loss = -activation
 
-            # Dictionary to track statistics for this step
             step_stats: Dict[str, Any] = {
                 "step": step,
                 "activation": activation.item(),
@@ -122,32 +121,24 @@ def generate_deep_dreams_for_channel_timestep(
 
             step_stats["total_loss"] = loss.item()
 
-            # --- Intermediate Result Saving ---
             should_save_intermediate = (
                 stage_config.intermediate_opt_results_every_n_steps > 0
                 and step % stage_config.intermediate_opt_results_every_n_steps == 0
             )
 
             if should_save_intermediate:
-                # Create a distinct folder for this step to keep things organized
                 step_dir = output_dir / "intermediate" / f"step_{step:04d}"
                 step_dir.mkdir(parents=True, exist_ok=True)
 
-                # 1. Save Stats
                 with open(step_dir / "stats.json", "w") as f:
                     json.dump(step_stats, f, indent=4)
 
-                # 2. Decode and Save Image
-                # We use a no_grad block here to avoid messing up the main optimization graph
                 with torch.no_grad():
                     current_images = model_wrapper.decode_latents(latents.detach())
-                    # Assuming batch size might be > 1, save all
                     for j, image_arr in enumerate(current_images):
                         image_u8 = (image_arr * 255).astype(np.uint8)
                         Image.fromarray(image_u8).save(step_dir / f"image_{j:04d}.png")
-            # ----------------------------------
 
-            # Backward pass
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
 
@@ -252,7 +243,6 @@ def generate_deep_dreams(
 
     start_time = time.time()
 
-    # NOTE: No outer torch.no_grad() here, so we can control gradients inside the inner function
     for i, single_channel_batch in enumerate(data_loader):
         channel = single_channel_batch[0]
         channel_name = f"channel_{channel:04d}"
@@ -267,8 +257,9 @@ def generate_deep_dreams(
             continue
 
         if stage_config.use_prior:
-            # Note: Changed to use dictionary access based on previous fix
-            priors = curr_prior_results[channel].get_latents(device=fabric.device, dtype=dtype)
+            priors = curr_prior_results[channel].get_latents(
+                device=fabric.device, dtype=dtype, n_results=stage_config.n_results
+            )
         else:
             assert stage_config.seeds is not None, "Seeds must be provided when not using priors."
 
@@ -283,6 +274,8 @@ def generate_deep_dreams(
         timesteps = set(additional_timesteps)
         if extend_timesteps_map is not None:
             timesteps.update(extend_timesteps_map[channel])
+        if stage_config.use_just_one_timestep:
+            timesteps = set(list(timesteps)[:1])
 
         for timestep in timesteps:
             timestep_path = channel_path / f"timestep_{timestep:04d}"
