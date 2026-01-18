@@ -112,8 +112,11 @@ class DeepDreamStageConfig(StageConfig):
     # hyperparams for each.
     prior_results_dir: Path = MISSING
 
+    # These are just for small scale sweeps:
     start_channel: Optional[int] = None
     end_channel: Optional[int] = None
+    channels: Optional[list[int]] = None
+    channels_sae: Optional[list[int]] = None
 
     timesteps: list[Union[int, str]] = MISSING
     use_just_one_timestep: Optional[bool] = False

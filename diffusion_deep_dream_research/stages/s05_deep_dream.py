@@ -227,7 +227,15 @@ def generate_deep_dreams(
         f"Generating deep_dream for channels {start_channel} to {end_channel} using timesteps: {stage_config.timesteps}"
     )
 
-    channels_dataset = IndexDataset(start_channel, end_channel + 1)
+    # Config for small scale sweeps.
+    # It was added during experiments for convenience.
+    if not sae and stage_config.channels is not None:
+        channels_dataset = IndexDataset(stage_config.channels)
+    elif sae and stage_config.channels_sae is not None:
+        channels_dataset = IndexDataset(stage_config.channels_sae)
+    else:
+        channels_dataset = IndexDataset(start_channel, end_channel + 1)
+
     data_loader = DataLoader(channels_dataset, batch_size=1, shuffle=False, collate_fn=lambda x: x)
     data_loader = fabric.setup_dataloaders(data_loader)
 
@@ -245,16 +253,6 @@ def generate_deep_dreams(
 
     for i, single_channel_batch in enumerate(data_loader):
         channel = single_channel_batch[0]
-        channel_name = f"channel_{channel:04d}"
-        channel_path = output_dir / channel_name
-        channel_path.mkdir(parents=True, exist_ok=True)
-
-        channel_done_marker = channel_path / ".done"
-        if channel_done_marker.exists():
-            logger.info(
-                f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping."
-            )
-            continue
 
         if stage_config.use_prior:
             priors = curr_prior_results[channel].get_latents(
@@ -276,6 +274,21 @@ def generate_deep_dreams(
             timesteps.update(extend_timesteps_map[channel])
         if stage_config.use_just_one_timestep:
             timesteps = set(list(timesteps)[:1])
+
+        if not timesteps:
+            logger.warning(f"No timesteps found for channel {channel}. Skipping.")
+            continue
+
+        channel_name = f"channel_{channel:04d}"
+        channel_path = output_dir / channel_name
+        channel_path.mkdir(parents=True, exist_ok=True)
+
+        channel_done_marker = channel_path / ".done"
+        if channel_done_marker.exists():
+            logger.info(
+                f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping."
+            )
+            continue
 
         for timestep in timesteps:
             timestep_path = channel_path / f"timestep_{timestep:04d}"
