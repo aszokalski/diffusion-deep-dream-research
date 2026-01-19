@@ -4,14 +4,14 @@ defaults:
 
 name: "deep_dream"
 timesteps:
-  # - 0
+  - 0
   # - "active_timesteps"
   - "activity_peaks"
-use_just_one_timestep: true
+
 
 # This is only for small tests
-start_channel: 10
-end_channel: 30
+# start_channel: 10
+# end_channel: 30
 
 
 see_through_schedule_noise: true
@@ -26,10 +26,11 @@ range_penalty_weight: 0.5 # 1
 #range_penalty_weight_sae: 1.0
 
 moment_penalty_weight: 0.0 # 0.5
-#moment_penalty_weight_sae: 0.5
+moment_penalty_weight_sae: 0.5
 
-gradient_smoothing_sigma_start: 0.0 # 0.5
+gradient_smoothing_sigma_start: 0.5 # 0.5
 gradient_smoothing_sigma_end: 0.0
+gradient_smoothing_sigma_start_sae: 0.0
 
 use_decorrelated_space: true 
 #use_decorrelated_space_sae: true
@@ -54,12 +55,12 @@ learning_rate: 0.05 # or 0.05
 # For no prior:
 seeds:
   - 1024
-  # - 1111
-  # - 4359
-  # - 3248
-  # - 1026
+  - 1111
+  - 4359
+  - 3248
+  - 1026
   
-n_results: 1
+n_results: 5
 
 log_every_n_steps: 10
 intermediate_opt_results_every_n_steps: 10

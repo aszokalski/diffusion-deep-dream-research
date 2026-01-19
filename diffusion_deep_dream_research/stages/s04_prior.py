@@ -1,29 +1,29 @@
 import datetime
 import json
+from pathlib import Path
 import pickle
 import time
-from pathlib import Path
 from typing import cast
 
-import numpy as np
-import torch
-from PIL import Image
 from diffusers import StableDiffusionPipeline  # pyright: ignore[reportPrivateImportUsage]
 from lightning import Fabric
 from loguru import logger
+import numpy as np
+from PIL import Image
 from safetensors.torch import save_file
+from submodules.SAeUron.SAE.sae import Sae
+import torch
 from torch.utils.data import DataLoader
 
 from diffusion_deep_dream_research.config.config_schema import (
     ExperimentConfig,
-    Timesteps,
     PriorStageConfig,
+    Timesteps,
 )
 from diffusion_deep_dream_research.core.data.index_dataset import IndexDataset
 from diffusion_deep_dream_research.core.model.hooked_model_wrapper import HookedModelWrapper
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 from diffusion_deep_dream_research.utils.torch_utils import get_dtype
-from submodules.SAeUron.SAE.sae import Sae
 
 
 def generate_priors(

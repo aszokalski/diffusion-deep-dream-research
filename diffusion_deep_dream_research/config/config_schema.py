@@ -35,6 +35,7 @@ class Stage(str, Enum):
     plots = "plots"
     prior = "prior"
     deep_dream = "deep_dream"
+    representation = "representation"
 
 
 @dataclass
@@ -140,6 +141,8 @@ class DeepDreamStageConfig(StageConfig):
 
     gradient_smoothing_sigma_start: float = MISSING
     gradient_smoothing_sigma_end: float = MISSING
+    gradient_smoothing_sigma_start_sae: Optional[float] = None
+    gradient_smoothing_sigma_end_sae: Optional[float] = None
 
     gradient_smoothing_kernel_size: int = 9
 
@@ -170,6 +173,12 @@ class DeepDreamStageConfig(StageConfig):
     log_every_n_steps: int = MISSING
     intermediate_opt_results_every_n_steps: int = MISSING
 
+@dataclass
+class RepresentationStageConfig(StageConfig):
+    name: str = "representation"
+    timestep_analysis_results_dir: Path = MISSING
+    prior_results_dir: Path = MISSING
+    deep_dream_results_dir: Path = MISSING
 
 @dataclass
 class FabricConfig:
@@ -222,3 +231,4 @@ def register_configs():
     cs.store(group="stages", name="plots_schema", node=PlotsStageConfig)
     cs.store(group="stages", name="prior_schema", node=PriorStageConfig)
     cs.store(group="stages", name="deep_dream_schema", node=DeepDreamStageConfig)
+    cs.store(group="stages", name="representation_schema", node=RepresentationStageConfig)

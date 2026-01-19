@@ -1,10 +1,16 @@
+import os
+
 import gdown
 from huggingface_hub import snapshot_download
+from loguru import logger
 from tqdm import tqdm
 
-from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, AssetSourceType, AssetType
-from loguru import logger
-import os
+from diffusion_deep_dream_research.config.config_schema import (
+    AssetSourceType,
+    AssetType,
+    ExperimentConfig,
+)
+
 
 def run_provision(config: ExperimentConfig):
     logger.debug(f"Creating models directory at: {config.assets_dir}")

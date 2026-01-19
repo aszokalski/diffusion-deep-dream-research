@@ -7,10 +7,6 @@ timesteps: active_timesteps
 n_results: 5
 log_every_n_steps: 10
 
-# ONLY FOR SWEEPS:
-# start_channel: 10
-# end_channel: 30
-
 seeds:
    - 1024
    - 1111
@@ -19,4 +15,4 @@ seeds:
    - 1026
 steer_strength_scale: 50
 steer_strength_scale_sae: 500
-timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-05/20-34-31/0
+timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-17/00-01-22/0

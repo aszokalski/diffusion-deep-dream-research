@@ -61,7 +61,8 @@ dependencies = [
     "tqdm",
     "transformers",
     "typer",
-    "torch-lucent @ git+https://github.com/aszokalski/lucent.git@custom-device-support"
+    "torch-lucent @ git+https://github.com/aszokalski/lucent.git@custom-device-support",
+    "streamlit"
 ]
 requires-python = "~=3.12.0"
 
