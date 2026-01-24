@@ -8,13 +8,13 @@ infrastructure_name: "athena"
 data_root: "${oc.env:PLG_GROUPS_STORAGE}/plggailpwmm/aszokalski/${project_name}"
 
 fabric:
-  accelerator: "cuda"
+  accelerator: "cpu"
 
 stages:
   capture:
     num_images_per_prompt: 5
-    batch_size: 8
-    num_workers: 8
+    batch_size: 1
+    num_workers: 1
     log_every_n_steps: 10
 
 hydra:
@@ -24,8 +24,8 @@ hydra:
     account: plgmusicxai01-gpu-a100
 
     nodes: 1
-    gpus_per_node: 4 #or 4
-    tasks_per_node: 4 #or 4
+    gpus_per_node: 0 #or 4
+    tasks_per_node: 1 #or 4
 
     # Athena allows up to 16 CPUs and ~125GB RAM per A100 without extra charge.
     # We use 16 to speed up num_workers.
@@ -33,7 +33,7 @@ hydra:
     mem_gb: 125
 
     # 3. Time Limits & Reliability
-    timeout_min: 120  # 2 Hours (10 mins for testing)
+    timeout_min: 30  # 2 Hours (10 mins for testing)
 
     # If the job hits the 24h limit, Submitit will auto-requeue it 3 times.
     # Your .done marker logic ensures it resumes where it left off.

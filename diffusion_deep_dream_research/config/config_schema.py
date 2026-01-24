@@ -146,8 +146,8 @@ class DeepDreamStageConfig(StageConfig):
 
     gradient_smoothing_kernel_size: int = 9
 
-    use_decorrelated_space: bool = MISSING
-    use_decorrelated_space_sae: Optional[float] = None
+    use_gradient_spectral_filtering: bool = MISSING
+    use_gradient_spectral_filtering_sae: Optional[float] = None
 
     jitter_max: int = MISSING
     jitter_max_sae: Optional[int] = None
@@ -173,12 +173,15 @@ class DeepDreamStageConfig(StageConfig):
     log_every_n_steps: int = MISSING
     intermediate_opt_results_every_n_steps: int = MISSING
 
+
 @dataclass
 class RepresentationStageConfig(StageConfig):
     name: str = "representation"
     timestep_analysis_results_dir: Path = MISSING
     prior_results_dir: Path = MISSING
-    deep_dream_results_dir: Path = MISSING
+    deep_dream_results_dir_noise: Path = MISSING
+    deep_dream_results_dir_no_noise: Path = MISSING
+
 
 @dataclass
 class FabricConfig:

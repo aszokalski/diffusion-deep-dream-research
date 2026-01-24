@@ -14,8 +14,6 @@ class TotalVariationPenalty(BasePenalty):
         Total Variation penalty.
         Vertical and Horizontal gradients ^2 sum
         https://en.wikipedia.org/wiki/Total_variation
-
-        TODO: Probably should calculate mean not sum
         """
         # latents: (batch_size, channels, height, width)
 

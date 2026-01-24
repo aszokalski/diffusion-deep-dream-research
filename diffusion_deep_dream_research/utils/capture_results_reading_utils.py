@@ -1,17 +1,18 @@
 from dataclasses import dataclass
+import json
+from pathlib import Path
 from typing import Optional
 
+from loguru import logger
 import numpy as np
 from safetensors.torch import load_file
-from pathlib import Path
-from loguru import logger
-import json
 
 
 @dataclass
 class Activations:
-    encoded: Optional[np.ndarray] # (total_batch_size, sae_channel)
-    raw: np.ndarray # (total_batch_size, channel)
+    encoded: Optional[np.ndarray]  # (total_batch_size, sae_channel)
+    raw: np.ndarray  # (total_batch_size, channel)
+
 
 @dataclass
 class Batch:
@@ -19,26 +20,21 @@ class Batch:
     generated_image_paths: list[Path]
     activations_per_timestep: dict[int, Activations]
 
+
 def get_batches(path: Path) -> list[Batch]:
     batches: list[Batch] = []
 
-    all_rank_dirs = sorted([
-        d
-        for d in path.iterdir()
-        if d.is_dir()
-           and d.name.startswith("fabric_rank_")
-    ])
+    all_rank_dirs = sorted(
+        [d for d in path.iterdir() if d.is_dir() and d.name.startswith("fabric_rank_")]
+    )
 
     logger.info(f"Found {len(all_rank_dirs)} rank directories.")
     for rank_dir in all_rank_dirs:
         logger.debug(f"Processing rank directory: {rank_dir}")
 
-        all_batch_dirs = sorted([
-            d
-            for d in rank_dir.iterdir()
-            if d.is_dir()
-               and d.name.startswith("batch_")
-        ])
+        all_batch_dirs = sorted(
+            [d for d in rank_dir.iterdir() if d.is_dir() and d.name.startswith("batch_")]
+        )
 
         logger.debug(f"Found {len(all_batch_dirs)} batch directories.")
 
@@ -48,12 +44,9 @@ def get_batches(path: Path) -> list[Batch]:
             if not images_dir.exists():
                 raise ValueError(f"generated_images directory does not exist in {images_dir}")
 
-            generated_image_paths = sorted([
-                f
-                for f in images_dir.iterdir()
-                if f.is_file()
-                   and f.name.startswith("image_")
-            ])
+            generated_image_paths = sorted(
+                [f for f in images_dir.iterdir() if f.is_file() and f.name.startswith("image_")]
+            )
             logger.debug(f"Found {len(generated_image_paths)} generated images.")
 
             prompt_file = batch_dir / "prompts.json"
@@ -64,12 +57,9 @@ def get_batches(path: Path) -> list[Batch]:
                 prompts = json.load(f)
             logger.debug(f"Loaded {len(prompts)} prompts.")
 
-            all_timestep_dirs = sorted([
-                d
-                for d in batch_dir.iterdir()
-                if d.is_dir()
-                   and d.name.startswith("timestep_")
-            ])
+            all_timestep_dirs = sorted(
+                [d for d in batch_dir.iterdir() if d.is_dir() and d.name.startswith("timestep_")]
+            )
             logger.debug(f"Found {len(all_timestep_dirs)} timestep directories.")
 
             activations_per_timestep: dict[int, Activations] = {}
@@ -90,23 +80,22 @@ def get_batches(path: Path) -> list[Batch]:
                     activations_encoded = None
 
                 if not activations_raw_path.exists():
-                    raise ValueError(f"capture_raw.safetensors does not exist in {activations_raw_path}")
+                    raise ValueError(
+                        f"capture_raw.safetensors does not exist in {activations_raw_path}"
+                    )
 
                 activations_raw = (
                     load_file(activations_raw_path)["activations"].detach().cpu().numpy()
                 )
 
-                activations = Activations(
-                    encoded=activations_encoded,
-                    raw=activations_raw
-                )
+                activations = Activations(encoded=activations_encoded, raw=activations_raw)
 
                 activations_per_timestep[timestep_num] = activations
 
             batch = Batch(
                 prompts=prompts,
                 generated_image_paths=generated_image_paths,
-                activations_per_timestep=activations_per_timestep
+                activations_per_timestep=activations_per_timestep,
             )
 
             batches.append(batch)

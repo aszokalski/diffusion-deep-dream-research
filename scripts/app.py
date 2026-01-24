@@ -1,252 +1,461 @@
-import json
-import pickle
-import random
-import textwrap
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+import pickle
+from typing import Dict, List, Optional
 
 import altair as alt
-import numpy as np
 import pandas as pd
-import streamlit as st
 from PIL import Image
-from scipy.interpolate import interp1d
+import streamlit as st
 
-# --- CONFIGURATION ---
-BASE_PATH = Path(
-    "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research/outputs/e0/Stage.timestep_analysis/multirun/2026-01-05/20-34-31/0"
+# Imports and Error Handling
+try:
+    from diffusion_deep_dream_research.utils.deep_dream_results_reading_utils import (
+        DeepDreamResult,
+        DeepDreamStats,
+        IntermediateStep,
+    )
+    from diffusion_deep_dream_research.utils.prior_results_reading_utils import (
+        ChannelPriors,
+        ImageWithLatent,
+    )
+except ImportError:
+    st.error(
+        "Could not import project classes. Please run this app from the project root "
+        "or ensure `diffusion_deep_dream_research` is in your PYTHONPATH."
+    )
+    st.stop()
+
+
+# Configuration
+BASE_REPRESENTATION_DIR = Path(
+    "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research/outputs/default_experiment/Stage.representation/multirun/2026-01-24/19-05-34/0"
 )
+
 PROJECT_ROOT = Path(
-    "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research"
+    "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research/outputs"
 )
-TOTAL_TIMESTEPS = 1000
 
-st.set_page_config(layout="wide", page_title="Deep Dream Research Explorer")
+st.set_page_config(layout="wide", page_title="Deep Dream Explorer")
 
 
-# --- 1. Fast Data Loading ---
+# Data Structures
+@dataclass
+class ChannelMeta:
+    activity_profile: object
+    max_activation: object
+    peaks: List[int]
+
+
+@dataclass
+class TimestepData:
+    dataset_examples: List[Dict[str, str]]
+    deep_dream: Dict[str, List[DeepDreamResult]]
+
+
+@dataclass
+class ChannelData:
+    id: int
+    meta: ChannelMeta
+    priors: ChannelPriors
+    timesteps: Dict[int, TimestepData]
+
+
+# Utility Functions
+def get_available_modes():
+    modes = {}
+    std_path = BASE_REPRESENTATION_DIR / "non-sae" / "index_metadata.pkl"
+    sae_path = BASE_REPRESENTATION_DIR / "sae" / "index_metadata.pkl"
+
+    if std_path.exists():
+        modes["non-SAE"] = BASE_REPRESENTATION_DIR / "non-sae"
+    if sae_path.exists():
+        modes["SAE"] = BASE_REPRESENTATION_DIR / "sae"
+
+    if not modes and (BASE_REPRESENTATION_DIR / "index_metadata.pkl").exists():
+        modes["Default"] = BASE_REPRESENTATION_DIR
+
+    return modes
+
+
 @st.cache_data
-def load_analysis_data(base_path: Path, sae: bool):
-    suffix = "_sae" if sae else ""
+def load_metadata(base_path: Path):
+    path = base_path / "index_metadata.pkl"
+    if not path.exists():
+        return None
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+@st.cache_data(max_entries=20, show_spinner=False)
+def load_channel_shard(base_path: Path, channel_id: int) -> Optional[ChannelData]:
+    path = base_path / "channels" / f"channel_{channel_id:05d}.pkl"
+    if not path.exists():
+        return None
+    with open(path, "rb") as f:
+        data = pickle.load(f)
+    return data
+
+
+def load_image_safe(path_str: str) -> Optional[Image.Image]:
     try:
-        # Load heavy pickle files
-        with open(
-            base_path / f"frequency_in_top_k_sorted_timesteps_max_activation{suffix}.pkl", "rb"
-        ) as f:
-            frequency, sorted_ts, max_act = pickle.load(f)
-
-        # Load JSONs
-        with open(base_path / f"activity_peaks{suffix}.json", "r") as f:
-            activity_peaks = json.load(f)
-
-        # Load dataset examples
-        # Optimization: dataset_examples can be huge. If loading is still slow,
-        # consider splitting this file or using a database/parquet.
-        with open(base_path / f"dataset_examples{suffix}.json", "r") as f:
-            dataset_examples = json.load(f)
-
-        return frequency, np.array(sorted_ts), max_act, activity_peaks, dataset_examples
-    except FileNotFoundError as e:
-        st.error(f"Error loading data: {e}")
+        p = Path(path_str)
+        if not p.exists():
+            p = PROJECT_ROOT / path_str
+        if p.exists():
+            return Image.open(p).convert("RGB")
+        return None
+    except Exception:
         return None
 
 
-# --- 2. Image Logic ---
-def get_random_example(
-    dataset_examples: dict, channel_idx: int, timestep: int, project_root: Path
-) -> Tuple[Optional[Image.Image], str]:
-    c_key = str(channel_idx)
-    t_key = str(timestep)
-
-    if c_key not in dataset_examples:
-        return None, "Channel not found in examples"
-    if t_key not in dataset_examples[c_key]:
-        return None, "No image generated for this specific timestep"
-
-    examples_list = dataset_examples[c_key][t_key]
-    if not examples_list:
-        return None, "Empty example list"
-
-    # Pick random example
-    prompt, rel_path_str = random.choice(examples_list)
-    image_path = project_root / rel_path_str
-
-    if not image_path.exists():
-        return None, f"File not found: {image_path.name}"
-
-    try:
-        return Image.open(image_path).convert("RGB"), prompt
-    except Exception:
-        return None, "Error loading image file"
+# Session State Initialization
+if "selected_timestep" not in st.session_state:
+    st.session_state.selected_timestep = 0
 
 
-# --- 3. State Helper ---
-def set_timestep(val):
-    st.session_state.timestep_input = val
-
-
-# --- 4. Main App ---
+# Main Application Logic
 def main():
-    st.title("Deep Dream Explorer: Peaks & Channels")
+    st.title("Deep Dream Explorer")
 
-    # -- Sidebar --
-    st.sidebar.header("Configuration")
-    use_sae = st.sidebar.checkbox("Use SAE (Sparse Autoencoder)", value=False)
-
-    data = load_analysis_data(BASE_PATH, use_sae)
-    if not data:
+    available_modes = get_available_modes()
+    if not available_modes:
+        st.error(f"No Representation Data Found at {BASE_REPRESENTATION_DIR}")
         st.stop()
 
-    frequency, sorted_timesteps, max_activation, activity_peaks, dataset_examples = data
+    # Sidebar Controls
+    with st.sidebar:
+        st.header("Settings")
+        mode_names = list(available_modes.keys())
+        selected_mode_name = st.radio("Analysis Mode", mode_names, horizontal=True)
+        current_data_path = available_modes[selected_mode_name]
 
-    # Filter Active Channels
-    n_channels = frequency.shape[0]
-    active_indices = [i for i in range(n_channels) if np.sum(frequency[i]) > 0]
+        with st.spinner("Loading index metadata..."):
+            meta = load_metadata(current_data_path)
 
-    # Sidebar: Channel Selector
-    st.sidebar.subheader("1. Channel")
-    selected_channel = st.sidebar.selectbox(
-        "Search Channel Index", active_indices, format_func=lambda x: f"Channel {x:04d}"
-    )
+        if not meta:
+            st.error("Failed to load metadata.")
+            st.stop()
 
-    peaks = activity_peaks[selected_channel]
+        active_channels = meta.active_channels
+        if not active_channels:
+            st.warning("No active channels found.")
+            st.stop()
 
-    # State Management: Reset timestep if channel changes
-    if "last_channel" not in st.session_state or st.session_state.last_channel != selected_channel:
-        st.session_state.last_channel = selected_channel
-        default_ts = peaks[0] if peaks else int(np.argmax(frequency[selected_channel]))
-        st.session_state.timestep_input = default_ts
-
-    # Sidebar: Peaks
-    st.sidebar.subheader("2. Jump to Peak")
-    if peaks:
-        cols = st.sidebar.columns(3)
-        for i, peak in enumerate(peaks):
-            cols[i % 3].button(
-                f"T={peak}",
-                key=f"btn_{peak}",
-                on_click=set_timestep,
-                args=(peak,),
-                use_container_width=True,
-            )
-    else:
-        st.sidebar.caption("No distinct peaks.")
-
-    # Sidebar: Manual Input
-    st.sidebar.subheader("3. Exact Timestep")
-    current_ts = st.sidebar.number_input(
-        "Enter Timestep", min_value=0, max_value=TOTAL_TIMESTEPS, key="timestep_input", step=1
-    )
-
-    # --- MAIN UI ---
-    col_left, col_right = st.columns([2, 1])
-
-    with col_left:
-        # --- DATA PREPARATION FOR ALTAIR ---
-        # 1. Interpolation Data (Full Range)
-        y_observed = frequency[selected_channel]
-        x_observed = sorted_timesteps
-
-        # Perform interpolation
-        f_interp = interp1d(
-            x_observed, y_observed, kind="linear", bounds_error=False, fill_value=0
+        selected_id = st.selectbox(
+            f"Select Channel ({len(active_channels)})",
+            active_channels,
+            format_func=lambda x: f"Ch {x:04d}",
         )
-        x_full = np.arange(0, TOTAL_TIMESTEPS + 1)
-        y_full = f_interp(x_full)
 
-        # Create DataFrames
-        df_interp = pd.DataFrame({"Timestep": x_full, "Frequency": y_full})
-        df_observed = pd.DataFrame({"Timestep": x_observed, "Frequency": y_observed})
-        df_peaks = pd.DataFrame(
+        with st.spinner(f"Loading data for Channel {selected_id}..."):
+            ch_data = load_channel_shard(current_data_path, selected_id)
+
+        if not ch_data:
+            st.error(f"Could not load data for Channel {selected_id}")
+            st.stop()
+
+        # Timestep Navigation
+        st.divider()
+        st.subheader("Go To")
+
+        # Activity Peaks
+        peaks = ch_data.meta.peaks
+        if peaks:
+            st.caption("Activity Peaks")
+            # Sort peaks descending to prioritize recent/high values; render full width
+            sorted_peaks = sorted(peaks, reverse=True)
+            for p in sorted_peaks:
+                if st.button(f"Timestep {p}", key=f"peak_{p}", use_container_width=True):
+                    st.session_state.selected_timestep = p
+
+        # Existing Data Navigation
+        st.caption("Available Results")
+        available_ts = sorted(list(ch_data.timesteps.keys()))
+        relevant_ts = [
+            t
+            for t in available_ts
+            if ch_data.timesteps[t].deep_dream or ch_data.timesteps[t].dataset_examples
+        ]
+        target_ts = st.selectbox(
+            "Jump to timestep with data:",
+            options=[st.session_state.selected_timestep] + relevant_ts,
+            index=0,
+        )
+        if target_ts != st.session_state.selected_timestep:
+            st.session_state.selected_timestep = target_ts
+
+        # Manual Selection
+        st.divider()
+        new_t = st.number_input(
+            "Manual Timestep",
+            min_value=0,
+            max_value=1000,
+            value=st.session_state.selected_timestep,
+        )
+        if new_t != st.session_state.selected_timestep:
+            st.session_state.selected_timestep = new_t
+            st.rerun()
+
+    # Main Content Layout
+    current_t = st.session_state.selected_timestep
+
+    # Create a two-column layout: Visualizations (Left) and Detailed Results (Right)
+    col_graphs, col_results = st.columns([1, 1])
+
+    # Left Column: Activity and Activation Charts
+    with col_graphs:
+        render_charts(ch_data, current_t)
+
+    # Right Column: Detailed Analysis Tabs
+    with col_results:
+        t_data = ch_data.timesteps.get(current_t)
+
+        tab_dd, tab_ex, tab_priors = st.tabs(["Deep Dreams", "Dataset Examples", "Channel Priors"])
+
+        with tab_dd:
+            if not t_data or not t_data.deep_dream:
+                st.info(f"No Deep Dreams generated for Timestep {current_t}")
+            else:
+                render_deep_dream_view(t_data.deep_dream)
+
+        with tab_ex:
+            if not t_data or not t_data.dataset_examples:
+                st.info(f"No Dataset Examples found for Timestep {current_t}")
+            else:
+                render_dataset_examples(t_data.dataset_examples)
+
+        with tab_priors:
+            render_priors(ch_data.priors)
+
+
+def render_charts(ch_data: ChannelData, current_t: int):
+    """
+    Renders the Altair charts for channel activity and navigation.
+    """
+    # Prepare data for charts
+    act = ch_data.meta.activity_profile
+    max_act = ch_data.meta.max_activation
+    peaks = set(ch_data.meta.peaks)
+
+    df_context = pd.DataFrame(
+        {"Timestep": range(len(act)), "Activity": act, "Activation": max_act}
+    )
+
+    marker_data = []
+
+    for p in peaks:
+        marker_data.append(
             {
-                "Timestep": peaks,
-                "Frequency": [y_full[p] for p in peaks],
-                "Label": [str(p) for p in peaks],
+                "Timestep": p,
+                "Activity": act[p],
+                "Type": "Peak",
+                "Color": "#e74c3c",  # Red
+                "Shape": "cross",
+                "Size": 300,
             }
         )
 
-        # Max Activation Data
-        y_max = max_activation[selected_channel]
-        df_max = pd.DataFrame({"Timestep": sorted_timesteps, "Activation": y_max})
+    for t, data in ch_data.timesteps.items():
+        if t in peaks:
+            continue
+        if data.deep_dream:
+            marker_data.append(
+                {
+                    "Timestep": t,
+                    "Activity": act[t],
+                    "Type": "Deep Dream",
+                    "Color": "#2ecc71",  # Green
+                    "Shape": "circle",
+                    "Size": 100,
+                }
+            )
 
-        # --- CHART 1: ACTIVITY PROFILE ---
-        # Base Chart
-        base = alt.Chart(df_interp).encode(
-            x=alt.X("Timestep", scale=alt.Scale(domain=[TOTAL_TIMESTEPS, 0]))
+    df_markers = pd.DataFrame(marker_data)
+    x_scale = alt.X("Timestep", scale=alt.Scale(domain=[1000, 0]), axis=alt.Axis(title=""))
+
+    # Chart: Global Activity Profile
+    base_ctx = alt.Chart(df_context).encode(x=x_scale)
+    area = base_ctx.mark_area(color="lightgreen", opacity=0.3).encode(y="Activity")
+    line = base_ctx.mark_line(color="green", opacity=0.5).encode(y="Activity")
+
+    rule = (
+        alt.Chart(pd.DataFrame({"Timestep": [current_t]}))
+        .mark_rule(color="blue", strokeWidth=2)
+        .encode(x="Timestep")
+    )
+
+    chart_context = (area + line + rule).properties(height=250, title="Feature Activity Context")
+    st.altair_chart(chart_context, use_container_width=True)
+
+    # Chart: Maximum Activation Trends
+    chart_max = (
+        base_ctx.mark_line(color="#e67e22")
+        .encode(y=alt.Y("Activation", title="Max Activation"), tooltip=["Timestep", "Activation"])
+        .properties(height=150)
+    )
+    chart_max = (chart_max + rule).properties(title="Max Activation over Timesteps")
+    st.altair_chart(chart_max, use_container_width=True)
+
+    # Chart: Interactive Navigation Markers
+    if not df_markers.empty:
+        click_selector = alt.selection_point(fields=["Timestep"], on="click", name="ClickSelector")
+
+        base_sel = alt.Chart(df_markers).encode(
+            x=alt.X(
+                "Timestep",
+                scale=alt.Scale(domain=[1000, 0]),
+                axis=alt.Axis(title="Timestep (Click to Select)"),
+            )
         )
 
-        # A. Interpolated Line + Area
-        line = base.mark_line(color="#2ecc71").encode(y="Frequency")
-        area = base.mark_area(color="#2ecc71", opacity=0.2).encode(y="Frequency")
-
-        # B. Observed Points
         points = (
-            alt.Chart(df_observed)
-            .mark_circle(color="gray", opacity=0.4)
+            base_sel.mark_point(filled=True, opacity=1.0)
             .encode(
-                x=alt.X("Timestep", scale=alt.Scale(domain=[TOTAL_TIMESTEPS, 0])),
-                y="Frequency",
-                tooltip=["Timestep", "Frequency"],
+                y=alt.Y("Activity", axis=alt.Axis(title="Marker Activity")),
+                color=alt.Color("Color", scale=None),
+                shape=alt.Shape("Shape", scale=None),
+                size=alt.Size("Size", scale=None),
+                tooltip=["Timestep", "Type", "Activity"],
+                opacity=alt.condition(click_selector, alt.value(1.0), alt.value(0.4)),
             )
+            .add_params(click_selector)
         )
 
-        # C. Peaks Markers
-        peak_points = (
-            alt.Chart(df_peaks)
-            .mark_point(shape="cross", color="black", size=100)
-            .encode(x="Timestep", y="Frequency")
-        )
-        peak_labels = (
-            alt.Chart(df_peaks)
-            .mark_text(dy=-10, fontWeight="bold")
-            .encode(x="Timestep", y="Frequency", text="Label")
+        selection_event = st.altair_chart(
+            points.properties(height=200, title="Navigation (Click Markers)"),
+            use_container_width=True,
+            on_select="rerun",
+            key="nav_chart",
         )
 
-        # D. Current Selection Rule
-        rule = (
-            alt.Chart(pd.DataFrame({"Timestep": [current_ts]}))
-            .mark_rule(color="#e74c3c", strokeDash=[5, 5])
-            .encode(x="Timestep")
+        if selection_event.selection:
+            if "ClickSelector" in selection_event.selection:
+                sel_data = selection_event.selection["ClickSelector"]
+                if sel_data:
+                    new_t = sel_data[0]["Timestep"]
+                    if new_t != st.session_state.selected_timestep:
+                        st.session_state.selected_timestep = new_t
+                        st.rerun()
+            elif "rows" in selection_event.selection:
+                rows = selection_event.selection["rows"]
+                if rows:
+                    new_t = rows[0]["Timestep"]
+                    if new_t != st.session_state.selected_timestep:
+                        st.session_state.selected_timestep = new_t
+                        st.rerun()
+    else:
+        st.info("No clickable markers (peaks or deep dreams) for this channel.")
+
+
+def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
+    """
+    Renders the Deep Dream inspector with intermediate optimization steps.
+    """
+    # Selection Controls
+    c_mode, c_var = st.columns([1, 1])
+    with c_mode:
+        modes = list(dd_map.keys())
+        selected_mode = st.radio("Noise Mode", modes, horizontal=True)
+
+    results_list = dd_map[selected_mode]
+    with c_var:
+        variant_opts = range(len(results_list))
+        selected_idx = st.selectbox(
+            "Variant (Seed)", variant_opts, format_func=lambda x: f"Variant #{x + 1}"
         )
 
-        # Combine Chart 1
-        chart_activity = (area + line + points + peak_points + peak_labels + rule).properties(
-            title=f"Channel {selected_channel} Activity Profile", height=300
-        )
+    result: DeepDreamResult = results_list[selected_idx]
 
-        # --- CHART 2: MAX ACTIVATION ---
-        chart_max = (
-            alt.Chart(df_max)
-            .mark_line(color="#3498db")
-            .encode(
-                x=alt.X("Timestep", scale=alt.Scale(domain=[TOTAL_TIMESTEPS, 0])),
-                y="Activation",
-                tooltip=["Timestep", "Activation"],
+    # Split view: Stats (Left) | Image (Right)
+    col_stats, col_img = st.columns([1, 2])
+
+    intermediates = result.intermediate_steps
+    is_browsing_history = False
+    current_img = None
+    current_stats = None
+
+    # Image Column: Configure slider and display image
+    with col_img:
+        if intermediates:
+            max_step = len(intermediates)
+            step_idx = st.slider(
+                "Optimization Progress",
+                min_value=0,
+                max_value=max_step,
+                value=max_step,
+                help="Position 0 is start, rightmost is final result.",
             )
-        )
 
-        # Combine Chart 2 (Add the same rule)
-        chart_max = (chart_max + rule).properties(title="Max Activation", height=250)
-
-        # Render Charts
-        st.altair_chart(chart_activity, use_container_width=True)
-        st.altair_chart(chart_max, use_container_width=True)
-
-    with col_right:
-        st.markdown(f"### Result @ T={current_ts}")
-
-        img, prompt = get_random_example(
-            dataset_examples, selected_channel, current_ts, PROJECT_ROOT
-        )
-
-        if img:
-            st.image(img, use_container_width=True)
-            # Wrap prompt nicely
-            st.success(prompt)
+            if step_idx < max_step:
+                is_browsing_history = True
+                step_obj: IntermediateStep = intermediates[step_idx]
+                current_img = step_obj.get_image()
+                current_stats = step_obj.stats
+                current_label = f"Step {step_obj.step_idx}"
+            else:
+                current_img = result.get_final_image()
+                try:
+                    current_stats = result.stats
+                except FileNotFoundError:
+                    current_stats = None
+                current_label = "Final Result"
         else:
-            st.warning("No image found for this timestep.")
-            if peaks:
-                st.info("💡 Tip: Try clicking a Peak button on the left.")
+            current_img = result.get_final_image()
+            current_stats = result.stats
+            current_label = "Final Result"
+
+        st.subheader(current_label)
+        if current_img:
+            st.image(current_img, use_container_width=True)
+        else:
+            st.error("Image file missing")
+
+    # Statistics Column: Display metrics
+    with col_stats:
+        st.subheader("Stats")
+        if current_stats:
+            st.metric("Activation", f"{current_stats.activation:.4f}")
+
+            with st.expander("Penalty Breakdown", expanded=True):
+                for k, v in current_stats.penalties.items():
+                    st.write(f"**{k}:** {v:.4f}")
+
+            st.markdown("---")
+            st.metric("Total Loss", f"{current_stats.total_loss:.4f}")
+
+        if is_browsing_history:
+            st.info("Viewing intermediate step.")
+
+
+def render_dataset_examples(examples: List[Dict]):
+    st.markdown(f"**Found {len(examples)} examples triggering this feature.**")
+    cols = st.columns(3)
+    for i, ex in enumerate(examples):
+        img = load_image_safe(ex["path"])
+        with cols[i % 3]:
+            if img:
+                st.image(img, use_container_width=True)
+            else:
+                st.warning("Image missing")
+            with st.expander("Prompt"):
+                st.caption(ex["prompt"])
+
+
+def render_priors(priors: ChannelPriors):
+    if not priors or not priors.images_with_latents:
+        st.info("No priors saved for this channel.")
+        return
+
+    pairs = priors.images_with_latents
+    st.markdown(f"**{len(pairs)} Priors Available**")
+
+    cols = st.columns(4)
+    for i, pair in enumerate(pairs):
+        with cols[i % 4]:
+            img = load_image_safe(str(pair.image_path))
+            if img:
+                st.image(img, use_container_width=True, caption=f"Prior {i}")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,9 @@ defaults:
    - representation_schema
    - _self_
 
-name: "plots"
-frame_duration: 2
+name: "representation"
+
 timestep_analysis_results_dir: e0/Stage.timestep_analysis/multirun/2026-01-17/00-01-22/0
+prior_results_dir: small_prior_generation_for_deep_dream_sweep/Stage.prior/multirun/2026-01-16/21-06-37/0
+deep_dream_results_dir_noise: dd_sweep_gradient_smoothing/Stage.deep_dream/multirun/2026-01-18/21-31-48/1
+deep_dream_results_dir_no_noise: dd_sweep_gradient_smoothing/Stage.deep_dream/multirun/2026-01-18/21-31-48/5

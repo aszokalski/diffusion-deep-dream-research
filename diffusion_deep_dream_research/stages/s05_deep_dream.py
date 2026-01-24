@@ -56,7 +56,7 @@ def generate_deep_dreams_for_channel_timestep(
     activation_type: CaptureHook.ActivationType,
     priors: torch.Tensor,
     output_dir: Path,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, dict[str, Any]]:
     latents = priors.detach().clone().float()
     latents.requires_grad_(True)
 
@@ -143,7 +143,7 @@ def generate_deep_dreams_for_channel_timestep(
             scaler.unscale_(optimizer)
 
             assert latents.grad is not None, "Latents gradient is None after backward pass."
-            if stage_config.use_decorrelated_space:
+            if stage_config.use_gradient_spectral_filtering:
                 latents.grad = gradient_preconditioner(latents.grad)
 
             gradient_smoother.update_current_step(step)
@@ -152,7 +152,7 @@ def generate_deep_dreams_for_channel_timestep(
             scaler.step(optimizer)
             scaler.update()
 
-    return latents
+    return latents, step_stats
 
 
 def generate_deep_dreams(
@@ -299,7 +299,7 @@ def generate_deep_dreams(
                 )
                 continue
 
-            latents = generate_deep_dreams_for_channel_timestep(
+            latents, stats = generate_deep_dreams_for_channel_timestep(
                 stage_config=stage_config,
                 model_wrapper=model_wrapper,
                 channel=channel,
@@ -313,6 +313,9 @@ def generate_deep_dreams(
             latents = latents.detach()
             images = model_wrapper.decode_latents(latents)
             latents = latents.cpu()
+
+            with open(timestep_path / "stats.json", "w") as f:
+                json.dump(stats, f, indent=4)
 
             latents_dir = timestep_path / "latents"
             latents_dir.mkdir(parents=True, exist_ok=True)
