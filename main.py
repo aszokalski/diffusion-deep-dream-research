@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+import sys
+import traceback
 from typing import Callable
 
 import hydra
@@ -51,7 +53,14 @@ def main(cfg: ExperimentConfig) -> None:
     config: ExperimentConfig = OmegaConf.to_object(cfg)
     logger.info(f"Running with config: {OmegaConf.to_yaml(cfg)}")
     logger.info(f"Executing stage: {config.stage}...")
-    stages[config.stage](config)
+
+    try:
+        stages[config.stage](config)
+    except BaseException:
+        traceback.print_exc(file=sys.stderr)
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
 
     logger.info(
         f"Done! Results at: \n [absolute] {Path(os.getcwd())} \n [relative to outputs] {Path(os.getcwd()).relative_to(config.outputs_dir)}"
