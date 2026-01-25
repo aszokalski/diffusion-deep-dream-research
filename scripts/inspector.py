@@ -8,7 +8,6 @@ import pandas as pd
 from PIL import Image
 import streamlit as st
 
-# Imports and Error Handling
 try:
     from diffusion_deep_dream_research.utils.deep_dream_results_reading_utils import (
         DeepDreamResult,
@@ -27,7 +26,6 @@ except ImportError:
     st.stop()
 
 
-# Configuration
 BASE_REPRESENTATION_DIR = Path(
     "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research/outputs/default_experiment/Stage.representation/multirun/2026-01-24/19-05-34/0"
 )
@@ -39,7 +37,6 @@ PROJECT_ROOT = Path(
 st.set_page_config(layout="wide", page_title="Deep Dream Explorer")
 
 
-# Data Structures
 @dataclass
 class ChannelMeta:
     activity_profile: object
@@ -61,7 +58,6 @@ class ChannelData:
     timesteps: Dict[int, TimestepData]
 
 
-# Utility Functions
 def get_available_modes():
     modes = {}
     std_path = BASE_REPRESENTATION_DIR / "non-sae" / "index_metadata.pkl"
@@ -109,12 +105,10 @@ def load_image_safe(path_str: str) -> Optional[Image.Image]:
         return None
 
 
-# Session State Initialization
 if "selected_timestep" not in st.session_state:
     st.session_state.selected_timestep = 0
 
 
-# Main Application Logic
 def main():
     st.title("Deep Dream Explorer")
 
@@ -123,7 +117,6 @@ def main():
         st.error(f"No Representation Data Found at {BASE_REPRESENTATION_DIR}")
         st.stop()
 
-    # Sidebar Controls
     with st.sidebar:
         st.header("Settings")
         mode_names = list(available_modes.keys())
@@ -155,21 +148,16 @@ def main():
             st.error(f"Could not load data for Channel {selected_id}")
             st.stop()
 
-        # Timestep Navigation
         st.divider()
         st.subheader("Go To")
 
-        # Activity Peaks
         peaks = ch_data.meta.peaks
         if peaks:
-            st.caption("Activity Peaks")
-            # Sort peaks descending to prioritize recent/high values; render full width
             sorted_peaks = sorted(peaks, reverse=True)
             for p in sorted_peaks:
-                if st.button(f"Timestep {p}", key=f"peak_{p}", use_container_width=True):
+                if st.button(f"Timestep {p}", key=f"peak_{p}"):
                     st.session_state.selected_timestep = p
 
-        # Existing Data Navigation
         st.caption("Available Results")
         available_ts = sorted(list(ch_data.timesteps.keys()))
         relevant_ts = [
@@ -185,7 +173,6 @@ def main():
         if target_ts != st.session_state.selected_timestep:
             st.session_state.selected_timestep = target_ts
 
-        # Manual Selection
         st.divider()
         new_t = st.number_input(
             "Manual Timestep",
@@ -197,17 +184,32 @@ def main():
             st.session_state.selected_timestep = new_t
             st.rerun()
 
-    # Main Content Layout
+        st.divider()
+        
+        with st.expander("View Options"):
+            chart_height_main = st.slider(
+                "Main Chart Height (px)", 
+                min_value=200, 
+                max_value=1000, 
+                value=400, 
+                step=50
+            )
+            
+            chart_height_secondary = st.slider(
+                "Secondary Chart Height (px)", 
+                min_value=100, 
+                max_value=600, 
+                value=250, 
+                step=50
+            )
+
     current_t = st.session_state.selected_timestep
 
-    # Create a two-column layout: Visualizations (Left) and Detailed Results (Right)
     col_graphs, col_results = st.columns([1, 1])
 
-    # Left Column: Activity and Activation Charts
     with col_graphs:
-        render_charts(ch_data, current_t)
+        render_charts(ch_data, current_t, chart_height_main, chart_height_secondary)
 
-    # Right Column: Detailed Analysis Tabs
     with col_results:
         t_data = ch_data.timesteps.get(current_t)
 
@@ -229,11 +231,10 @@ def main():
             render_priors(ch_data.priors)
 
 
-def render_charts(ch_data: ChannelData, current_t: int):
+def render_charts(ch_data: ChannelData, current_t: int, h_main: int, h_sec: int):
     """
-    Renders the Altair charts for channel activity and navigation.
+    Renders the Altair charts using manually provided heights.
     """
-    # Prepare data for charts
     act = ch_data.meta.activity_profile
     max_act = ch_data.meta.max_activation
     peaks = set(ch_data.meta.peaks)
@@ -252,7 +253,7 @@ def render_charts(ch_data: ChannelData, current_t: int):
                 "Type": "Peak",
                 "Color": "#e74c3c",  # Red
                 "Shape": "cross",
-                "Size": 300,
+                "Size": 200,
             }
         )
 
@@ -272,87 +273,54 @@ def render_charts(ch_data: ChannelData, current_t: int):
             )
 
     df_markers = pd.DataFrame(marker_data)
-    x_scale = alt.X("Timestep", scale=alt.Scale(domain=[1000, 0]), axis=alt.Axis(title=""))
+    
+    x_scale = alt.X("Timestep", scale=alt.Scale(domain=[1000, 0]), axis=alt.Axis(title="Timestep"))
 
-    # Chart: Global Activity Profile
     base_ctx = alt.Chart(df_context).encode(x=x_scale)
     area = base_ctx.mark_area(color="lightgreen", opacity=0.3).encode(y="Activity")
     line = base_ctx.mark_line(color="green", opacity=0.5).encode(y="Activity")
-
+    
     rule = (
         alt.Chart(pd.DataFrame({"Timestep": [current_t]}))
         .mark_rule(color="blue", strokeWidth=2)
         .encode(x="Timestep")
     )
+    
+    chart_context_base = (area + line + rule)
 
-    chart_context = (area + line + rule).properties(height=250, title="Feature Activity Context")
-    st.altair_chart(chart_context, use_container_width=True)
+    if not df_markers.empty:
+        markers_layer = alt.Chart(df_markers).mark_point(filled=True, opacity=1.0).encode(
+            x=x_scale,
+            y="Activity",
+            color=alt.Color("Color", scale=None),
+            shape=alt.Shape("Shape", scale=None),
+            size=alt.Size("Size", scale=None),
+            tooltip=["Timestep", "Type", "Activity"]
+        )
+        chart_context_base = chart_context_base + markers_layer
 
-    # Chart: Maximum Activation Trends
+    chart_context = chart_context_base.properties(
+        title="Feature Activity Context",
+        height=h_main
+    )
+
     chart_max = (
         base_ctx.mark_line(color="#e67e22")
         .encode(y=alt.Y("Activation", title="Max Activation"), tooltip=["Timestep", "Activation"])
-        .properties(height=150)
     )
-    chart_max = (chart_max + rule).properties(title="Max Activation over Timesteps")
-    st.altair_chart(chart_max, use_container_width=True)
+    chart_max = (chart_max + rule).properties(
+        title="Max Activation over Timesteps",
+        height=h_sec
+    )
 
-    # Chart: Interactive Navigation Markers
-    if not df_markers.empty:
-        click_selector = alt.selection_point(fields=["Timestep"], on="click", name="ClickSelector")
-
-        base_sel = alt.Chart(df_markers).encode(
-            x=alt.X(
-                "Timestep",
-                scale=alt.Scale(domain=[1000, 0]),
-                axis=alt.Axis(title="Timestep (Click to Select)"),
-            )
-        )
-
-        points = (
-            base_sel.mark_point(filled=True, opacity=1.0)
-            .encode(
-                y=alt.Y("Activity", axis=alt.Axis(title="Marker Activity")),
-                color=alt.Color("Color", scale=None),
-                shape=alt.Shape("Shape", scale=None),
-                size=alt.Size("Size", scale=None),
-                tooltip=["Timestep", "Type", "Activity"],
-                opacity=alt.condition(click_selector, alt.value(1.0), alt.value(0.4)),
-            )
-            .add_params(click_selector)
-        )
-
-        selection_event = st.altair_chart(
-            points.properties(height=200, title="Navigation (Click Markers)"),
-            use_container_width=True,
-            on_select="rerun",
-            key="nav_chart",
-        )
-
-        if selection_event.selection:
-            if "ClickSelector" in selection_event.selection:
-                sel_data = selection_event.selection["ClickSelector"]
-                if sel_data:
-                    new_t = sel_data[0]["Timestep"]
-                    if new_t != st.session_state.selected_timestep:
-                        st.session_state.selected_timestep = new_t
-                        st.rerun()
-            elif "rows" in selection_event.selection:
-                rows = selection_event.selection["rows"]
-                if rows:
-                    new_t = rows[0]["Timestep"]
-                    if new_t != st.session_state.selected_timestep:
-                        st.session_state.selected_timestep = new_t
-                        st.rerun()
-    else:
-        st.info("No clickable markers (peaks or deep dreams) for this channel.")
+    st.altair_chart(chart_context, width="stretch")
+    st.altair_chart(chart_max, width="stretch")
 
 
 def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
     """
     Renders the Deep Dream inspector with intermediate optimization steps.
     """
-    # Selection Controls
     c_mode, c_var = st.columns([1, 1])
     with c_mode:
         modes = list(dd_map.keys())
@@ -367,7 +335,6 @@ def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
 
     result: DeepDreamResult = results_list[selected_idx]
 
-    # Split view: Stats (Left) | Image (Right)
     col_stats, col_img = st.columns([1, 2])
 
     intermediates = result.intermediate_steps
@@ -375,8 +342,8 @@ def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
     current_img = None
     current_stats = None
 
-    # Image Column: Configure slider and display image
     with col_img:
+        img_container = st.container()
         if intermediates:
             max_step = len(intermediates)
             step_idx = st.slider(
@@ -405,13 +372,13 @@ def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
             current_stats = result.stats
             current_label = "Final Result"
 
-        st.subheader(current_label)
-        if current_img:
-            st.image(current_img, use_container_width=True)
-        else:
-            st.error("Image file missing")
+        with img_container:
+            st.subheader(current_label)
+            if current_img:
+                st.image(current_img, width="stretch")
+            else:
+                st.error("Image file missing")
 
-    # Statistics Column: Display metrics
     with col_stats:
         st.subheader("Stats")
         if current_stats:
@@ -435,7 +402,7 @@ def render_dataset_examples(examples: List[Dict]):
         img = load_image_safe(ex["path"])
         with cols[i % 3]:
             if img:
-                st.image(img, use_container_width=True)
+                st.image(img, width="stretch")
             else:
                 st.warning("Image missing")
             with st.expander("Prompt"):
@@ -455,7 +422,7 @@ def render_priors(priors: ChannelPriors):
         with cols[i % 4]:
             img = load_image_safe(str(pair.image_path))
             if img:
-                st.image(img, use_container_width=True, caption=f"Prior {i}")
+                st.image(img, width="stretch", caption=f"Prior {i}")
 
 
 if __name__ == "__main__":

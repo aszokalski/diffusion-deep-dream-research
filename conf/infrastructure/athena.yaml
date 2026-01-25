@@ -8,7 +8,7 @@ infrastructure_name: "athena"
 data_root: "${oc.env:PLG_GROUPS_STORAGE}/plggailpwmm/aszokalski/${project_name}"
 
 fabric:
-  accelerator: "cpu"
+  accelerator: "cuda"
 
 stages:
   capture:
@@ -24,7 +24,7 @@ hydra:
     account: plgmusicxai01-gpu-a100
 
     nodes: 1
-    gpus_per_node: 0 #or 4
+    gpus_per_node: 1 #or 4
     tasks_per_node: 1 #or 4
 
     # Athena allows up to 16 CPUs and ~125GB RAM per A100 without extra charge.
