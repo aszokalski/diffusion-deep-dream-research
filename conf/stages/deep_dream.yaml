@@ -5,7 +5,6 @@ defaults:
 name: "deep_dream"
 timesteps:
   - 0
-  # - "active_timesteps"
   - "activity_peaks"
 
 

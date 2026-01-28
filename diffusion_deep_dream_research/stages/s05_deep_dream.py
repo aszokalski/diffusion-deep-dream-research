@@ -127,7 +127,9 @@ def generate_deep_dreams_for_channel_timestep(
 
             step_stats["total_loss"] = loss.item()
 
-            logger.trace(f"Step {step}: Loss={loss.item():.4f}, Activation={activation.item():.4f}")
+            logger.trace(
+                f"Step {step}: Loss={loss.item():.4f}, Activation={activation.item():.4f}"
+            )
 
             should_save_intermediate = (
                 stage_config.intermediate_opt_results_every_n_steps > 0
@@ -176,7 +178,7 @@ def generate_deep_dreams(
     fabric: Fabric,
 ):
     logger.info(f"Starting generate_deep_dreams (SAE={sae})...")
-    
+
     # Model setup
     dtype = get_dtype()
     logger.debug(f"Using dtype: {dtype}")
@@ -219,7 +221,9 @@ def generate_deep_dreams(
     try:
         with open(timesteps_analysis_results_abs_path / active_timesteps_json_filename, "r") as f:
             active_timesteps = json.load(f)
-        logger.debug(f"Loaded {len(active_timesteps)} entries from {active_timesteps_json_filename}")
+        logger.debug(
+            f"Loaded {len(active_timesteps)} entries from {active_timesteps_json_filename}"
+        )
 
         with open(timesteps_analysis_results_abs_path / activity_peaks_json_filename, "r") as f:
             activity_peaks = json.load(f)
@@ -291,7 +295,7 @@ def generate_deep_dreams(
             if channel not in curr_prior_results:
                 logger.warning(f"No priors found for channel {channel} (SAE={sae}). Skipping.")
                 continue
-                
+
             priors = curr_prior_results[channel].get_latents(
                 device=fabric.device, dtype=dtype, n_results=stage_config.n_results
             )
@@ -310,10 +314,7 @@ def generate_deep_dreams(
 
         timesteps = set(additional_timesteps)
         if extend_timesteps_map is not None:
-            if str(channel) in extend_timesteps_map:
-                timesteps.update(extend_timesteps_map[str(channel)]) # JSON keys are strings
-            elif channel in extend_timesteps_map:
-                 timesteps.update(extend_timesteps_map[channel])
+            timesteps.update(extend_timesteps_map[channel])
 
         if stage_config.use_just_one_timestep:
             timesteps = set(list(timesteps)[:1])
@@ -322,7 +323,7 @@ def generate_deep_dreams(
         if not timesteps:
             logger.warning(f"No timesteps found for channel {channel}. Skipping.")
             continue
-        
+
         logger.debug(f"Timesteps for channel {channel}: {timesteps}")
 
         channel_name = f"channel_{channel:04d}"
@@ -330,11 +331,11 @@ def generate_deep_dreams(
         channel_path.mkdir(parents=True, exist_ok=True)
 
         channel_done_marker = channel_path / ".done"
-        if channel_done_marker.exists():
-            logger.info(
-                f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping."
-            )
-            continue
+        # if channel_done_marker.exists():
+        #     logger.info(
+        #         f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping."
+        #     )
+        #     continue
 
         for timestep in timesteps:
             timestep_path = channel_path / f"timestep_{timestep:04d}"
@@ -394,11 +395,12 @@ def generate_deep_dreams(
                 elapsed_seconds / batches_processed if batches_processed > 0 else 0
             )
 
-            remaining_batches = len(channels_dataset) - batches_processed
+            todo_for_one = int(len(channels_dataset) / fabric.world_size)
+            remaining_batches = todo_for_one - batches_processed
             eta_seconds = remaining_batches * avg_seconds_per_batch
             eta_str = str(datetime.timedelta(seconds=int(eta_seconds)))
             logger.info(
-                f"Rank {fabric.global_rank}: Processed {batches_processed}/{len(channels_dataset)} channels. ETA: {eta_str}"
+                f"Rank {fabric.global_rank}: Processed {batches_processed}/{todo_for_one} channels. ETA: {eta_str}"
             )
 
         channel_done_marker.touch()
@@ -413,7 +415,9 @@ def run_deep_dream(config: ExperimentConfig):
     fabric.launch()
 
     setup_distributed_logging(fabric.global_rank)
-    logger.info(f"Fabric launched. Global Rank: {fabric.global_rank}, World Size: {fabric.world_size}")
+    logger.info(
+        f"Fabric launched. Global Rank: {fabric.global_rank}, World Size: {fabric.world_size}"
+    )
 
     stage_config = cast(DeepDreamStageConfig, config.stage_config)
     sae_stage_config = resolve_sae_config(stage_config)
@@ -430,19 +434,19 @@ def run_deep_dream(config: ExperimentConfig):
         config.outputs_dir / stage_config.timestep_analysis_results_dir
     )
     prior_results_abs_path = config.outputs_dir / stage_config.prior_results_dir
-    
+
     logger.info(f"Timestep Analysis Path: {timesteps_analysis_results_abs_path}")
     logger.info(f"Prior Results Path: {prior_results_abs_path}")
 
     try:
-        generate_deep_dreams(
-            config=config,
-            stage_config=stage_config,
-            timesteps_analysis_results_abs_path=timesteps_analysis_results_abs_path,
-            prior_results_abs_path=prior_results_abs_path,
-            sae=False,
-            fabric=fabric,
-        )
+        # generate_deep_dreams(
+        #     config=config,
+        #     stage_config=stage_config,
+        #     timesteps_analysis_results_abs_path=timesteps_analysis_results_abs_path,
+        #     prior_results_abs_path=prior_results_abs_path,
+        #     sae=False,
+        #     fabric=fabric,
+        # )
 
         if use_sae:
             generate_deep_dreams(

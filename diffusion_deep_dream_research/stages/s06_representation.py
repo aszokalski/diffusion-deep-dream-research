@@ -62,6 +62,8 @@ def process_representation(
     timestep_analysis_config: TimestepAnalysisStageConfig,
     use_sae: bool,
 ):
+    logger.info(f"Starting process_representation | Use SAE: {use_sae}")
+
     suffix = "_sae" if use_sae else ""
     analysis_type = "sae" if use_sae else "non-sae"
 
@@ -69,7 +71,16 @@ def process_representation(
     timesteps_results_path = config.outputs_dir / stage_config.timestep_analysis_results_dir
     prior_results_path = config.outputs_dir / stage_config.prior_results_dir
     dd_noise_path = Path(config.outputs_dir) / stage_config.deep_dream_results_dir_noise
-    dd_no_noise_path = Path(config.outputs_dir) / stage_config.deep_dream_results_dir_no_noise
+    dd_no_noise_path = (
+        Path(config.outputs_dir) / stage_config.deep_dream_results_dir_no_noise
+        if stage_config.deep_dream_results_dir_no_noise
+        else None
+    )
+
+    logger.debug(f"Timesteps Results Path: {timesteps_results_path}")
+    logger.debug(f"Prior Results Path: {prior_results_path}")
+    logger.debug(f"Deep Dream Noise Path: {dd_noise_path}")
+    logger.debug(f"Deep Dream No-Noise Path: {dd_no_noise_path}")
 
     # Output Paths
     mode_dir = Path(analysis_type)
@@ -80,28 +91,41 @@ def process_representation(
     logger.info(f"Saving to: {mode_dir}")
 
     # Loading results
-    logger.info(f"Loading Analysis form {timesteps_results_path}")
+    logger.info(f"Loading Analysis from {timesteps_results_path}")
 
-    with open(
-        timesteps_results_path / f"frequency_in_top_k_sorted_timesteps_max_activation{suffix}.pkl",
-        "rb",
-    ) as f:
+    freq_path = (
+        timesteps_results_path / f"frequency_in_top_k_sorted_timesteps_max_activation{suffix}.pkl"
+    )
+    logger.debug(f"Reading frequency/activation data from {freq_path}")
+    with open(freq_path, "rb") as f:
         frequency_matrix, sorted_timesteps, max_activation_matrix = pickle.load(f)
+    logger.info(f"Loaded frequency_matrix shape: {frequency_matrix.shape}")
+    logger.info(f"Loaded max_activation_matrix shape: {max_activation_matrix.shape}")
+    logger.info(f"Loaded {len(sorted_timesteps)} sorted timesteps")
 
-    with open(timesteps_results_path / f"activity_peaks{suffix}.json", "r") as f:
+    peaks_path = timesteps_results_path / f"activity_peaks{suffix}.json"
+    logger.debug(f"Reading activity peaks from {peaks_path}")
+    with open(peaks_path, "r") as f:
         activity_peaks = json.load(f)  # channel -> list of timesteps
+    logger.info(f"Loaded activity peaks for {len(activity_peaks)} channels")
 
-    with open(timesteps_results_path / f"dataset_examples{suffix}.json", "r") as f:
+    examples_path = timesteps_results_path / f"dataset_examples{suffix}.json"
+    logger.debug(f"Reading dataset examples from {examples_path}")
+    with open(examples_path, "r") as f:
         dataset_examples = json.load(f)  # channel -> timestep -> list of (prompt, path)
+    logger.info(f"Loaded dataset examples for {len(dataset_examples)} channels")
 
-    logger.info("Indexing Priors & Deep Dreams...")
+    logger.info(f"Indexing Prior Results from {prior_results_path}")
     prior_results = get_prior_results(prior_results_path)
     # Select specific priors map (raw or sae)
     priors_map = prior_results.sae if use_sae else prior_results.raw
+    logger.info(f"Loaded {len(priors_map)} prior entries (SAE mode: {use_sae})")
 
+    logger.debug(f"Indexing Deep Dream Results from {dd_noise_path} and {dd_no_noise_path}")
     raw_dd, sae_dd = get_deep_dream_results(dd_noise_path, dd_no_noise_path)
     # Select specific deep dream map (raw or sae)
     deep_dream_map = sae_dd if use_sae else raw_dd
+    logger.info(f"Loaded {len(deep_dream_map)} deep dream entries (SAE mode: {use_sae})")
 
     index_metadata = IndexMetadata(
         active_channels=[],
@@ -117,6 +141,9 @@ def process_representation(
     logger.info(f"Processing {n_channels} channels...")
 
     for channel_id in range(n_channels):
+        if channel_id % 100 == 0:
+            logger.info(f"Processing channel batch starting at {channel_id}/{n_channels}")
+
         if sum(frequency_matrix[channel_id]) > 0:
             index_metadata.active_channels.append(channel_id)
 
@@ -156,6 +183,8 @@ def process_representation(
         if channel_id in deep_dream_map:
             relevant_timesteps.update(deep_dream_map[channel_id].keys())
 
+        logger.debug(f"Channel {channel_id} has {len(relevant_timesteps)} relevant timesteps")
+
         for t in relevant_timesteps:
             timestep_obj = TimestepData(dataset_examples=[], deep_dream={})
 
@@ -190,22 +219,33 @@ def process_representation(
         with open(shard_path, "wb") as f:
             pickle.dump(channel_data, f)
 
+    logger.info(f"Finished processing all {n_channels} channels.")
+    logger.info(f"Total active channels identified: {len(index_metadata.active_channels)}")
+
     # --- 6. SAVE GLOBAL METADATA ---
     meta_path = mode_dir / "index_metadata.pkl"
     logger.info(f"Saving Metadata to {meta_path}")
     with open(meta_path, "wb") as f:
         pickle.dump(index_metadata, f)
+    logger.info(f"Metadata saved successfully. Process for {analysis_type} complete.")
 
 
 def run_representation(config: ExperimentConfig):
+    logger.info("Initializing run_representation stage")
     stage_config = cast(RepresentationStageConfig, config.stage_config)
     timestep_analysis_config = cast(
         TimestepAnalysisStageConfig, config.stages[Stage.timestep_analysis]
     )
 
     # Process Standard (Raw) Channels
+    logger.info("Initiating Standard (Raw) Channel Processing")
     process_representation(config, stage_config, timestep_analysis_config, False)
 
     # Process SAE Channels (if enabled)
     if config.use_sae:
+        logger.info("Initiating SAE Channel Processing (config.use_sae=True)")
         process_representation(config, stage_config, timestep_analysis_config, True)
+    else:
+        logger.info("Skipping SAE Channel Processing (config.use_sae=False)")
+
+    logger.info("run_representation stage finished.")

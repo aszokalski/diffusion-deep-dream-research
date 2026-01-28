@@ -180,7 +180,7 @@ class RepresentationStageConfig(StageConfig):
     timestep_analysis_results_dir: Path = MISSING
     prior_results_dir: Path = MISSING
     deep_dream_results_dir_noise: Path = MISSING
-    deep_dream_results_dir_no_noise: Path = MISSING
+    deep_dream_results_dir_no_noise: Optional[Path] = None
 
 
 @dataclass

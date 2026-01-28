@@ -110,7 +110,7 @@ if "selected_timestep" not in st.session_state:
 
 
 def main():
-    st.title("Deep Dream Explorer")
+    st.title("Results Inspector")
 
     available_modes = get_available_modes()
     if not available_modes:
@@ -185,22 +185,14 @@ def main():
             st.rerun()
 
         st.divider()
-        
+
         with st.expander("View Options"):
             chart_height_main = st.slider(
-                "Main Chart Height (px)", 
-                min_value=200, 
-                max_value=1000, 
-                value=400, 
-                step=50
+                "Main Chart Height (px)", min_value=200, max_value=1000, value=400, step=50
             )
-            
+
             chart_height_secondary = st.slider(
-                "Secondary Chart Height (px)", 
-                min_value=100, 
-                max_value=600, 
-                value=250, 
-                step=50
+                "Secondary Chart Height (px)", min_value=100, max_value=600, value=250, step=50
             )
 
     current_t = st.session_state.selected_timestep
@@ -213,11 +205,13 @@ def main():
     with col_results:
         t_data = ch_data.timesteps.get(current_t)
 
-        tab_dd, tab_ex, tab_priors = st.tabs(["Deep Dreams", "Dataset Examples", "Channel Priors"])
+        tab_dd, tab_ex, tab_priors = st.tabs(
+            ["Visualization", "Dataset Examples", "Channel Priors"]
+        )
 
         with tab_dd:
             if not t_data or not t_data.deep_dream:
-                st.info(f"No Deep Dreams generated for Timestep {current_t}")
+                st.info(f"No visualizations generated for Timestep {current_t}")
             else:
                 render_deep_dream_view(t_data.deep_dream)
 
@@ -265,7 +259,7 @@ def render_charts(ch_data: ChannelData, current_t: int, h_main: int, h_sec: int)
                 {
                     "Timestep": t,
                     "Activity": act[t],
-                    "Type": "Deep Dream",
+                    "Type": "Visualization",
                     "Color": "#2ecc71",  # Green
                     "Shape": "circle",
                     "Size": 100,
@@ -273,45 +267,44 @@ def render_charts(ch_data: ChannelData, current_t: int, h_main: int, h_sec: int)
             )
 
     df_markers = pd.DataFrame(marker_data)
-    
+
     x_scale = alt.X("Timestep", scale=alt.Scale(domain=[1000, 0]), axis=alt.Axis(title="Timestep"))
 
     base_ctx = alt.Chart(df_context).encode(x=x_scale)
     area = base_ctx.mark_area(color="lightgreen", opacity=0.3).encode(y="Activity")
     line = base_ctx.mark_line(color="green", opacity=0.5).encode(y="Activity")
-    
+
     rule = (
         alt.Chart(pd.DataFrame({"Timestep": [current_t]}))
         .mark_rule(color="blue", strokeWidth=2)
         .encode(x="Timestep")
     )
-    
-    chart_context_base = (area + line + rule)
+
+    chart_context_base = area + line + rule
 
     if not df_markers.empty:
-        markers_layer = alt.Chart(df_markers).mark_point(filled=True, opacity=1.0).encode(
-            x=x_scale,
-            y="Activity",
-            color=alt.Color("Color", scale=None),
-            shape=alt.Shape("Shape", scale=None),
-            size=alt.Size("Size", scale=None),
-            tooltip=["Timestep", "Type", "Activity"]
+        markers_layer = (
+            alt.Chart(df_markers)
+            .mark_point(filled=True, opacity=1.0)
+            .encode(
+                x=x_scale,
+                y="Activity",
+                color=alt.Color("Color", scale=None),
+                shape=alt.Shape("Shape", scale=None),
+                size=alt.Size("Size", scale=None),
+                tooltip=["Timestep", "Type", "Activity"],
+            )
         )
         chart_context_base = chart_context_base + markers_layer
 
     chart_context = chart_context_base.properties(
-        title="Feature Activity Context",
-        height=h_main
+        title="Time-step Activity Profile", height=h_main
     )
 
-    chart_max = (
-        base_ctx.mark_line(color="#e67e22")
-        .encode(y=alt.Y("Activation", title="Max Activation"), tooltip=["Timestep", "Activation"])
+    chart_max = base_ctx.mark_line(color="#e67e22").encode(
+        y=alt.Y("Activation", title="Max Activation"), tooltip=["Timestep", "Activation"]
     )
-    chart_max = (chart_max + rule).properties(
-        title="Max Activation over Timesteps",
-        height=h_sec
-    )
+    chart_max = (chart_max + rule).properties(title="Max Activation over Timesteps", height=h_sec)
 
     st.altair_chart(chart_context, width="stretch")
     st.altair_chart(chart_max, width="stretch")
