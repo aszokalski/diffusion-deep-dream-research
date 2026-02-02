@@ -56,11 +56,7 @@ def generate_deep_dreams_for_channel_timestep(
     activation_type: CaptureHook.ActivationType,
     priors: torch.Tensor,
     output_dir: Path,
-) -> tuple[torch.Tensor, dict[str, Any]]:
-    logger.info(
-        f"Generating deep dream for channel {channel}, timestep {timestep} with priors shape {priors.shape}..."
-    )
-
+) -> torch.Tensor:
     latents = priors.detach().clone().float()
     latents.requires_grad_(True)
 
@@ -126,10 +122,6 @@ def generate_deep_dreams_for_channel_timestep(
                 step_stats["penalties"][penalty.__class__.__name__] = penalty_value.item()
 
             step_stats["total_loss"] = loss.item()
-
-            logger.trace(
-                f"Step {step}: Loss={loss.item():.4f}, Activation={activation.item():.4f}"
-            )
 
             should_save_intermediate = (
                 stage_config.intermediate_opt_results_every_n_steps > 0
