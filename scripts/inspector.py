@@ -1,42 +1,65 @@
+import argparse
 from dataclasses import dataclass
 from pathlib import Path
 import pickle
+import sys
 from typing import Dict, List, Optional
 
 import altair as alt
+import hydra
+from hydra.core.global_hydra import GlobalHydra
 import pandas as pd
-from PIL import Image
 import streamlit as st
 
-try:
-    from diffusion_deep_dream_research.utils.deep_dream_results_reading_utils import (
-        DeepDreamResult,
-        DeepDreamStats,
-        IntermediateStep,
-    )
-    from diffusion_deep_dream_research.utils.prior_results_reading_utils import (
-        ChannelPriors,
-        ImageWithLatent,
-    )
-except ImportError:
-    st.error(
-        "Could not import project classes. Please run this app from the project root "
-        "or ensure `diffusion_deep_dream_research` is in your PYTHONPATH."
-    )
-    st.stop()
-
-
-BASE_REPRESENTATION_DIR = Path(
-    "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research/outputs/default_experiment/Stage.representation/multirun/2026-01-24/19-05-34/0"
+from diffusion_deep_dream_research.config.config_schema import ExperimentConfig, register_configs
+from diffusion_deep_dream_research.utils.deep_dream_results_reading_utils import (
+    DeepDreamResult,
+    IntermediateStep,
+)
+from diffusion_deep_dream_research.utils.prior_results_reading_utils import (
+    ChannelPriors,
 )
 
-PROJECT_ROOT = Path(
-    "/net/pr2/projects/plgrid/plggailpwmm/aszokalski/diffusion-deep-dream-research/outputs"
-)
+
+# cli arguments
+def get_cli_args():
+    parser = argparse.ArgumentParser(description="Deep Dream Explorer")
+    parser.add_argument(
+        "--base_dir",
+        type=str,
+        required=True,
+        help="Path to the base representation directory",
+    )
+
+    try:
+        return parser.parse_args()
+    except SystemExit:
+        sys.exit(0)
+
+
+args = get_cli_args()
+BASE_REPRESENTATION_DIR = Path(args.base_dir)
+
+
+# hydra setup
+@st.cache_resource
+def load_config() -> ExperimentConfig:
+    GlobalHydra.instance().clear()
+
+    register_configs()
+    with hydra.initialize(version_base=None, config_path="../conf"):
+        cfg = hydra.compose(config_name="config", overrides=["stage=prior"])
+    return cfg
+
+
+config = load_config()
+PROJECT_ROOT = Path(config.outputs_dir)
+
 
 st.set_page_config(layout="wide", page_title="Deep Dream Explorer")
 
 
+# data structures
 @dataclass
 class ChannelMeta:
     activity_profile: object
@@ -58,6 +81,7 @@ class ChannelData:
     timesteps: Dict[int, TimestepData]
 
 
+# helper functions
 def get_available_modes():
     modes = {}
     std_path = BASE_REPRESENTATION_DIR / "non-sae" / "index_metadata.pkl"
@@ -93,30 +117,37 @@ def load_channel_shard(base_path: Path, channel_id: int) -> Optional[ChannelData
     return data
 
 
-def load_image_safe(path_str: str) -> Optional[Image.Image]:
+def get_image_path(path_str: str) -> Optional[str]:
     try:
         p = Path(path_str)
-        if not p.exists():
-            p = PROJECT_ROOT / path_str
         if p.exists():
-            return Image.open(p).convert("RGB")
+            return str(p)
+
+        p_alt = PROJECT_ROOT / path_str
+        if p_alt.exists():
+            return str(p_alt)
+
         return None
     except Exception:
         return None
 
 
+# session state
 if "selected_timestep" not in st.session_state:
     st.session_state.selected_timestep = 0
 
 
+# main app
 def main():
     st.title("Results Inspector")
 
     available_modes = get_available_modes()
     if not available_modes:
         st.error(f"No Representation Data Found at {BASE_REPRESENTATION_DIR}")
+        st.info("Check your --base_dir argument.")
         st.stop()
 
+    # sidebar settings
     with st.sidebar:
         st.header("Settings")
         mode_names = list(available_modes.keys())
@@ -135,10 +166,32 @@ def main():
             st.warning("No active channels found.")
             st.stop()
 
+        if "selected_channel_id" not in st.session_state:
+            st.session_state.selected_channel_id = active_channels[0]
+
+        if st.session_state.selected_channel_id not in active_channels:
+            st.session_state.selected_channel_id = active_channels[0]
+
+        # navigation controls
+        def cycle_channel(offset):
+            try:
+                current_idx = active_channels.index(st.session_state.selected_channel_id)
+                new_idx = (current_idx + offset) % len(active_channels)
+                st.session_state.selected_channel_id = active_channels[new_idx]
+            except ValueError:
+                st.session_state.selected_channel_id = active_channels[0]
+
+        col_prev, col_next = st.columns(2)
+        with col_prev:
+            st.button("Previous", on_click=cycle_channel, args=(-1,), use_container_width=True)
+        with col_next:
+            st.button("Next", on_click=cycle_channel, args=(1,), use_container_width=True)
+
         selected_id = st.selectbox(
             f"Select Channel ({len(active_channels)})",
             active_channels,
             format_func=lambda x: f"Ch {x:04d}",
+            key="selected_channel_id",
         )
 
         with st.spinner(f"Loading data for Channel {selected_id}..."):
@@ -148,6 +201,7 @@ def main():
             st.error(f"Could not load data for Channel {selected_id}")
             st.stop()
 
+        # timestep controls
         st.divider()
         st.subheader("Go To")
 
@@ -165,11 +219,17 @@ def main():
             for t in available_ts
             if ch_data.timesteps[t].deep_dream or ch_data.timesteps[t].dataset_examples
         ]
+
+        idx_selection = 0
+        if st.session_state.selected_timestep in relevant_ts:
+            idx_selection = relevant_ts.index(st.session_state.selected_timestep)
+
         target_ts = st.selectbox(
             "Jump to timestep with data:",
-            options=[st.session_state.selected_timestep] + relevant_ts,
-            index=0,
+            options=relevant_ts,
+            index=idx_selection,
         )
+
         if target_ts != st.session_state.selected_timestep:
             st.session_state.selected_timestep = target_ts
 
@@ -186,6 +246,7 @@ def main():
 
         st.divider()
 
+        # display options
         with st.expander("View Options"):
             chart_height_main = st.slider(
                 "Main Chart Height (px)", min_value=200, max_value=1000, value=400, step=50
@@ -195,6 +256,7 @@ def main():
                 "Secondary Chart Height (px)", min_value=100, max_value=600, value=250, step=50
             )
 
+    # main layout
     current_t = st.session_state.selected_timestep
 
     col_graphs, col_results = st.columns([1, 1])
@@ -225,10 +287,8 @@ def main():
             render_priors(ch_data.priors)
 
 
+# content rendering functions
 def render_charts(ch_data: ChannelData, current_t: int, h_main: int, h_sec: int):
-    """
-    Renders the Altair charts using manually provided heights.
-    """
     act = ch_data.meta.activity_profile
     max_act = ch_data.meta.max_activation
     peaks = set(ch_data.meta.peaks)
@@ -311,9 +371,6 @@ def render_charts(ch_data: ChannelData, current_t: int, h_main: int, h_sec: int)
 
 
 def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
-    """
-    Renders the Deep Dream inspector with intermediate optimization steps.
-    """
     c_mode, c_var = st.columns([1, 1])
     with c_mode:
         modes = list(dd_map.keys())
@@ -332,7 +389,8 @@ def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
 
     intermediates = result.intermediate_steps
     is_browsing_history = False
-    current_img = None
+
+    current_img_path = None
     current_stats = None
 
     with col_img:
@@ -350,27 +408,27 @@ def render_deep_dream_view(dd_map: Dict[str, List[DeepDreamResult]]):
             if step_idx < max_step:
                 is_browsing_history = True
                 step_obj: IntermediateStep = intermediates[step_idx]
-                current_img = step_obj.get_image()
+                current_img_path = step_obj.image_path
                 current_stats = step_obj.stats
                 current_label = f"Step {step_obj.step_idx}"
             else:
-                current_img = result.get_final_image()
+                current_img_path = result.final_image_path
                 try:
                     current_stats = result.stats
                 except FileNotFoundError:
                     current_stats = None
                 current_label = "Final Result"
         else:
-            current_img = result.get_final_image()
+            current_img_path = result.final_image_path
             current_stats = result.stats
             current_label = "Final Result"
 
         with img_container:
             st.subheader(current_label)
-            if current_img:
-                st.image(current_img, width="stretch")
+            if current_img_path and Path(current_img_path).exists():
+                st.image(str(current_img_path), width="stretch")
             else:
-                st.error("Image file missing")
+                st.error(f"Image file missing: {current_img_path}")
 
     with col_stats:
         st.subheader("Stats")
@@ -392,10 +450,10 @@ def render_dataset_examples(examples: List[Dict]):
     st.markdown(f"**Found {len(examples)} examples triggering this feature.**")
     cols = st.columns(3)
     for i, ex in enumerate(examples):
-        img = load_image_safe(ex["path"])
+        img_path = get_image_path(ex["path"])
         with cols[i % 3]:
-            if img:
-                st.image(img, width="stretch")
+            if img_path:
+                st.image(img_path, width="stretch")
             else:
                 st.warning("Image missing")
             with st.expander("Prompt"):
@@ -413,9 +471,10 @@ def render_priors(priors: ChannelPriors):
     cols = st.columns(4)
     for i, pair in enumerate(pairs):
         with cols[i % 4]:
-            img = load_image_safe(str(pair.image_path))
-            if img:
-                st.image(img, width="stretch", caption=f"Prior {i}")
+            if pair.image_path.exists():
+                st.image(str(pair.image_path), width="stretch", caption=f"Prior {i}")
+            else:
+                st.warning(f"Missing: {pair.image_path.name}")
 
 
 if __name__ == "__main__":

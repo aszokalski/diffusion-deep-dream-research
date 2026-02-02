@@ -331,11 +331,11 @@ def generate_deep_dreams(
         channel_path.mkdir(parents=True, exist_ok=True)
 
         channel_done_marker = channel_path / ".done"
-        # if channel_done_marker.exists():
-        #     logger.info(
-        #         f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping."
-        #     )
-        #     continue
+        if channel_done_marker.exists():
+            logger.info(
+                f"Rank {fabric.global_rank}: Channel {channel} already processed. Skipping."
+            )
+            continue
 
         for timestep in timesteps:
             timestep_path = channel_path / f"timestep_{timestep:04d}"
@@ -384,7 +384,6 @@ def generate_deep_dreams(
                 timestep_done_marker.touch()
             except Exception as e:
                 logger.exception(f"Error processing channel {channel}, timestep {timestep}: {e}")
-                # We do not stop the loop, try next timestep/channel
 
         if i % stage_config.log_every_n_steps == 0:
             current_time = time.time()
@@ -439,14 +438,14 @@ def run_deep_dream(config: ExperimentConfig):
     logger.info(f"Prior Results Path: {prior_results_abs_path}")
 
     try:
-        # generate_deep_dreams(
-        #     config=config,
-        #     stage_config=stage_config,
-        #     timesteps_analysis_results_abs_path=timesteps_analysis_results_abs_path,
-        #     prior_results_abs_path=prior_results_abs_path,
-        #     sae=False,
-        #     fabric=fabric,
-        # )
+        generate_deep_dreams(
+            config=config,
+            stage_config=stage_config,
+            timesteps_analysis_results_abs_path=timesteps_analysis_results_abs_path,
+            prior_results_abs_path=prior_results_abs_path,
+            sae=False,
+            fabric=fabric,
+        )
 
         if use_sae:
             generate_deep_dreams(

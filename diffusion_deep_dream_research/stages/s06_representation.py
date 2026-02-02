@@ -15,7 +15,7 @@ from diffusion_deep_dream_research.config.config_schema import (
     TimestepAnalysisStageConfig,
 )
 from diffusion_deep_dream_research.utils.deep_dream_results_reading_utils import (
-    DeepDreamResult,  # Importing for type hinting
+    DeepDreamResult,
     get_deep_dream_results,
 )
 from diffusion_deep_dream_research.utils.prior_results_reading_utils import (
@@ -42,7 +42,6 @@ class ChannelMeta:
 @dataclass
 class TimestepData:
     dataset_examples: List[Dict[str, str]]
-    # Map: NoiseMode -> List of DeepDreamResults (variants)
     deep_dream: Dict[Literal["noise", "no_noise"], List[DeepDreamResult]] = field(
         default_factory=dict
     )
@@ -67,7 +66,6 @@ def process_representation(
     suffix = "_sae" if use_sae else ""
     analysis_type = "sae" if use_sae else "non-sae"
 
-    # Input Paths
     timesteps_results_path = config.outputs_dir / stage_config.timestep_analysis_results_dir
     prior_results_path = config.outputs_dir / stage_config.prior_results_dir
     dd_noise_path = Path(config.outputs_dir) / stage_config.deep_dream_results_dir_noise
@@ -82,7 +80,6 @@ def process_representation(
     logger.debug(f"Deep Dream Noise Path: {dd_noise_path}")
     logger.debug(f"Deep Dream No-Noise Path: {dd_no_noise_path}")
 
-    # Output Paths
     mode_dir = Path(analysis_type)
     channels_dir = mode_dir / "channels"
     channels_dir.mkdir(parents=True, exist_ok=True)
@@ -117,13 +114,13 @@ def process_representation(
 
     logger.info(f"Indexing Prior Results from {prior_results_path}")
     prior_results = get_prior_results(prior_results_path)
-    # Select specific priors map (raw or sae)
+
     priors_map = prior_results.sae if use_sae else prior_results.raw
     logger.info(f"Loaded {len(priors_map)} prior entries (SAE mode: {use_sae})")
 
     logger.debug(f"Indexing Deep Dream Results from {dd_noise_path} and {dd_no_noise_path}")
     raw_dd, sae_dd = get_deep_dream_results(dd_noise_path, dd_no_noise_path)
-    # Select specific deep dream map (raw or sae)
+
     deep_dream_map = sae_dd if use_sae else raw_dd
     logger.info(f"Loaded {len(deep_dream_map)} deep dream entries (SAE mode: {use_sae})")
 
@@ -147,8 +144,7 @@ def process_representation(
         if sum(frequency_matrix[channel_id]) > 0:
             index_metadata.active_channels.append(channel_id)
 
-        # 1. Prepare Channel Metadata (Interpolation)
-        # frequency in top-k[timestep]
+        # Interpolation
         y_observed = frequency_matrix[channel_id]
         f_interp = interp1d(
             x_observed, y_observed, kind="linear", bounds_error=False, fill_value=0
@@ -168,14 +164,10 @@ def process_representation(
             peaks=activity_peaks[channel_id],
         )
 
-        # 2. Get Priors Object
-        # Default to empty ChannelPriors if not found for this channel
         channel_priors = priors_map.get(channel_id, ChannelPriors(images_with_latents=[]))
 
-        # 3. Build Timestep Map
         timesteps_map: Dict[int, TimestepData] = {}
 
-        # Collect relevant timesteps (union of dataset examples and deep dream results)
         relevant_timesteps = set()
         c_key = str(channel_id)
         if c_key in dataset_examples:
@@ -188,25 +180,18 @@ def process_representation(
         for t in relevant_timesteps:
             timestep_obj = TimestepData(dataset_examples=[], deep_dream={})
 
-            # Add Dataset Examples
             if c_key in dataset_examples and str(t) in dataset_examples[c_key]:
                 channel_timestep_examples = dataset_examples[c_key][str(t)]
                 timestep_obj.dataset_examples = [
                     {"prompt": ex[0], "path": str(ex[1])} for ex in channel_timestep_examples
                 ]
 
-            # Add Deep Dreams
             if channel_id in deep_dream_map and t in deep_dream_map[channel_id]:
-                # deep_dream_map[channel][t] is Dict[NoiseMode, List[DeepDreamResult]]
                 result_modes = deep_dream_map[channel_id][t]
-
-                # Directly assign the dictionary of lists of result objects
-                # No manual dictionary construction needed; we keep the objects.
                 timestep_obj.deep_dream = result_modes
 
             timesteps_map[t] = timestep_obj
 
-        # 4. Construct Final Channel Data Object
         channel_data = ChannelData(
             id=channel_id,
             meta=channel_meta,
@@ -214,7 +199,6 @@ def process_representation(
             timesteps=timesteps_map,
         )
 
-        # 5. Save Shard
         shard_path = channels_dir / f"channel_{channel_id:05d}.pkl"
         with open(shard_path, "wb") as f:
             pickle.dump(channel_data, f)
@@ -222,7 +206,6 @@ def process_representation(
     logger.info(f"Finished processing all {n_channels} channels.")
     logger.info(f"Total active channels identified: {len(index_metadata.active_channels)}")
 
-    # --- 6. SAVE GLOBAL METADATA ---
     meta_path = mode_dir / "index_metadata.pkl"
     logger.info(f"Saving Metadata to {meta_path}")
     with open(meta_path, "wb") as f:
@@ -237,11 +220,9 @@ def run_representation(config: ExperimentConfig):
         TimestepAnalysisStageConfig, config.stages[Stage.timestep_analysis]
     )
 
-    # Process Standard (Raw) Channels
     logger.info("Initiating Standard (Raw) Channel Processing")
     process_representation(config, stage_config, timestep_analysis_config, False)
 
-    # Process SAE Channels (if enabled)
     if config.use_sae:
         logger.info("Initiating SAE Channel Processing (config.use_sae=True)")
         process_representation(config, stage_config, timestep_analysis_config, True)

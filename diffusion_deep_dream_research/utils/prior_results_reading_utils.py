@@ -1,10 +1,20 @@
+import concurrent.futures
 from dataclasses import dataclass
+import os
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple, TypedDict
 
 from loguru import logger
 from PIL import Image
 from safetensors import safe_open
 import torch
+
+from diffusion_deep_dream_research.utils.path_utils import extract_id
+
+
+class PriorMapData(TypedDict):
+    images: Dict[int, Path]
+    latents: Dict[int, Path]
 
 
 @dataclass
@@ -14,21 +24,14 @@ class ImageWithLatent:
 
     @property
     def image(self) -> Image.Image:
-        logger.debug(f"Opening image: {self.image_path}")
         return Image.open(self.image_path)
 
     @property
     def latent(self) -> torch.Tensor:
-        """
-        Returns a CPU tensor of the latent
-        """
-        logger.debug(f"Loading latent tensor from: {self.latent_path}")
+        """Returns a CPU tensor of the latent."""
         try:
             with safe_open(self.latent_path, framework="pt", device="cpu") as f:
-                key = list(f.keys())[0]
-                latent = f.get_tensor(key)
-                logger.trace(f"Loaded latent shape: {latent.shape}")
-            return latent
+                return f.get_tensor(list(f.keys())[0])
         except Exception as e:
             logger.error(f"Failed to load latent from {self.latent_path}: {e}")
             raise
@@ -36,145 +39,126 @@ class ImageWithLatent:
 
 @dataclass
 class ChannelPriors:
-    images_with_latents: list[ImageWithLatent]
+    images_with_latents: List[ImageWithLatent]
 
     def get_latents(
         self, device: torch.device, dtype: torch.dtype, n_results=None
     ) -> torch.Tensor:
-        """
-        Returns a tensor of shape (num_images, latent_dim...) bound to CPU
-        :return:
-        """
-        total_available = len(self.images_with_latents)
-        if n_results is not None:
-            logger.debug(f"Requesting {n_results} latents (available: {total_available})")
-            subset = self.images_with_latents[:n_results]
-        else:
-            logger.debug(f"Requesting all {total_available} latents")
-            subset = self.images_with_latents
+        """Returns a tensor of shape (num_images, latent_dim...) bound to CPU."""
+        subset = (
+            self.images_with_latents[:n_results]
+            if n_results is not None
+            else self.images_with_latents
+        )
 
-        logger.debug("Stacking latent tensors...")
         latents_list = [iwl.latent for iwl in subset]
 
         if not latents_list:
             logger.warning("No latents found to stack. Returning empty tensor.")
             return torch.empty(0, device=device, dtype=dtype)
 
-        latents = torch.stack(latents_list, dim=0)
-        logger.debug(f"Stacked tensor shape: {latents.shape}. Moving to {device} as {dtype}.")
-
-        return latents.detach().to(device=device, dtype=dtype)
+        return torch.stack(latents_list, dim=0).detach().to(device=device, dtype=dtype)
 
 
 @dataclass
 class PriorResults:
-    raw: dict[int, ChannelPriors]
-    sae: dict[int, ChannelPriors]
+    raw: Dict[int, ChannelPriors]
+    sae: Dict[int, ChannelPriors]
 
 
-def _parse_channel_dir(channel_path: Path) -> list[ImageWithLatent]:
-    """Helper to pair images and latents within a channel directory."""
-    logger.debug(f"Parsing channel directory: {channel_path}")
+def _scan_channel_files(channel_path: Path) -> PriorMapData:
+    data_map: PriorMapData = {"images": {}, "latents": {}}
 
-    images_dir = channel_path / "images"
-    latents_dir = channel_path / "latents"
+    for root, _, files in os.walk(channel_path):
+        if not files:
+            continue
 
+        root_path = Path(root)
+        parent_name = root_path.name
+
+        if parent_name == "images":
+            for f in files:
+                if f.startswith("prior_image_") and f.endswith(".png"):
+                    if (idx := extract_id(f)) is not None:
+                        data_map["images"][idx] = root_path / f
+
+        elif parent_name == "latents":
+            for f in files:
+                if f.startswith("prior_latent_") and f.endswith(".safetensors"):
+                    if (idx := extract_id(f)) is not None:
+                        data_map["latents"][idx] = root_path / f
+
+    return data_map
+
+
+def _assemble_channel_priors(data_map: PriorMapData) -> Optional[List[ImageWithLatent]]:
     results = []
 
-    if not images_dir.exists():
-        logger.warning(f"Images directory missing at {images_dir}")
-        return results
-    if not latents_dir.exists():
-        logger.warning(f"Latents directory missing at {latents_dir}")
-        return results
+    sorted_indices = sorted(data_map["images"].keys())
 
-    # Get all image files first
-    image_files = sorted(list(images_dir.glob("prior_image_*.png")))
-    logger.debug(f"Found {len(image_files)} image files in {images_dir}")
-
-    for image_path in image_files:
-        try:
-            file_id = image_path.stem.split("_")[-1]
-            latent_path = latents_dir / f"prior_latent_{file_id}.safetensors"
-
-            if latent_path.exists():
-                results.append(ImageWithLatent(image_path=image_path, latent_path=latent_path))
-            else:
-                logger.error(
-                    f"Latent file missing for image {image_path}. Expected: {latent_path}"
+    for idx in sorted_indices:
+        if idx in data_map["latents"]:
+            results.append(
+                ImageWithLatent(
+                    image_path=data_map["images"][idx], latent_path=data_map["latents"][idx]
                 )
-                raise ValueError(f"Latent file missing for image {image_path}")
-        except Exception as e:
-            logger.error(f"Error parsing pair for {image_path}: {e}")
-            raise
+            )
 
-    logger.debug(f"Successfully paired {len(results)} items in {channel_path.name}")
-    return results
+    return results if results else None
+
+
+def _process_channel(channel_path: Path) -> Optional[Tuple[int, List[ImageWithLatent]]]:
+    cid = extract_id(channel_path.name)
+    if cid is None:
+        return None
+
+    raw_map = _scan_channel_files(channel_path)
+
+    priors_list = _assemble_channel_priors(raw_map)
+
+    if not priors_list:
+        return None
+
+    return cid, priors_list
 
 
 def get_prior_results(root_path: Path) -> PriorResults:
-    """
-    Reads prior results from the given root path.
-    """
     logger.info(f"Scanning for prior results in: {root_path}")
 
-    raw_channels: dict[int, ChannelPriors] = {}
-    sae_channels: dict[int, ChannelPriors] = {}
+    if not root_path.exists():
+        logger.error(f"Root path does not exist: {root_path}")
+        return PriorResults(raw={}, sae={})
 
-    rank_dirs = sorted(root_path.glob("fabric_rank_*"))
-    logger.info(f"Found {len(rank_dirs)} fabric rank directories.")
+    raw_channels: Dict[int, ChannelPriors] = {}
+    sae_channels: Dict[int, ChannelPriors] = {}
 
-    for rank_dir in rank_dirs:
-        logger.debug(f"Processing rank directory: {rank_dir}")
+    tasks = []
+    for p in root_path.glob("fabric_rank_*/priors/channel_*"):
+        tasks.append(("raw", p))
+    for p in root_path.glob("fabric_rank_*/priors_sae/channel_*"):
+        tasks.append(("sae", p))
 
-        # Process Raw Priors
-        priors_dir = rank_dir / "priors"
-        if priors_dir.exists():
-            channel_dirs = list(priors_dir.glob("channel_*"))
-            logger.debug(f"Found {len(channel_dirs)} raw channel directories in {priors_dir}")
+    logger.info(f"Detected {len(tasks)} channels to process.")
 
-            for channel_dir in channel_dirs:
-                try:
-                    channel_id = int(channel_dir.name.split("_")[-1])
-                    pairs = _parse_channel_dir(channel_dir)
-                    if pairs:
-                        if channel_id in raw_channels:
-                            logger.warning(
-                                f"Duplicate channel ID {channel_id} found in {rank_dir}. Skipping."
-                            )
-                            continue
-                        else:
-                            raw_channels[channel_id] = ChannelPriors(images_with_latents=pairs)
-                except Exception as e:
-                    logger.error(f"Failed to process raw channel dir {channel_dir}: {e}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        future_map = {executor.submit(_process_channel, p): r_type for r_type, p in tasks}
 
-        # Process SAE Priors
-        priors_sae_dir = rank_dir / "priors_sae"
-        if priors_sae_dir.exists():
-            channel_dirs_sae = list(priors_sae_dir.glob("channel_*"))
-            logger.debug(
-                f"Found {len(channel_dirs_sae)} SAE channel directories in {priors_sae_dir}"
-            )
+        for i, future in enumerate(concurrent.futures.as_completed(future_map)):
+            r_type = future_map[future]
+            try:
+                res = future.result()
+                if res:
+                    cid, pairs = res
+                    target_dict = raw_channels if r_type == "raw" else sae_channels
 
-            for channel_dir in channel_dirs_sae:
-                try:
-                    channel_id = int(channel_dir.name.split("_")[-1])
-                    pairs = _parse_channel_dir(channel_dir)
-                    if pairs:
-                        if channel_id in sae_channels:
-                            logger.warning(
-                                f"Duplicate SAE channel ID {channel_id} found in {rank_dir}. Skipping."
-                            )
-                            continue
-                        else:
-                            sae_channels[channel_id] = ChannelPriors(images_with_latents=pairs)
-                except ValueError as e:
-                    logger.error(f"Skipping invalid SAE channel dir {channel_dir}: {e}")
-                    continue
-                except Exception as e:
-                    logger.exception(f"Unexpected error in SAE channel dir {channel_dir}: {e}")
+                    if cid not in target_dict:
+                        target_dict[cid] = ChannelPriors(images_with_latents=pairs)
 
-    logger.info(
-        f"Completed loading priors. Found {len(raw_channels)} raw channels and {len(sae_channels)} SAE channels."
-    )
+            except Exception as e:
+                logger.error(f"Worker failed: {e}")
+
+            if (i + 1) % 2000 == 0:
+                logger.info(f"Progress: {i + 1}/{len(tasks)} channels processed...")
+
+    logger.success(f"Completed loading priors. Raw: {len(raw_channels)}, SAE: {len(sae_channels)}")
     return PriorResults(raw=raw_channels, sae=sae_channels)
