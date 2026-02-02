@@ -5,7 +5,7 @@ defaults:
 
 infrastructure_name: "athena"
 
-data_root: "${oc.env:PLG_GROUPS_STORAGE}/plggailpwmm/aszokalski/${project_name}"
+data_root: "${oc.env:PLG_GROUPS_STORAGE}/${oc.env:PLG_GROUP_NAME}/${oc.env:PLG_USERNAME}/${project_name}"
 
 fabric:
   accelerator: "cuda"
@@ -21,7 +21,7 @@ hydra:
   launcher:
     # 1. Athena Partition & Account
     partition: plgrid-gpu-a100
-    account: plgmusicxai01-gpu-a100
+    account: ${oc.env:PLG_SLURM_ACCOUNT}
 
     nodes: 1
     gpus_per_node: 0 #or 4
@@ -46,7 +46,7 @@ hydra:
       signal: SIGUSR1@90
       requeue: true
 
-      mail-user: szokalskiadam@gmail.com
+      mail-user: ${oc.env:NOTIFICATION_EMAIL}
       mail-type: BEGIN,END,FAIL
 
     # 5. Environment Setup

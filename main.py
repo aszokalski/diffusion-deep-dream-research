@@ -4,7 +4,10 @@ import sys
 import traceback
 from typing import Callable
 
+from dotenv import load_dotenv
 import hydra
+
+load_dotenv()
 from loguru import logger
 from omegaconf import OmegaConf
 import submitit

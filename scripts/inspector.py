@@ -6,7 +6,10 @@ import sys
 from typing import Dict, List, Optional
 
 import altair as alt
+from dotenv import load_dotenv
 import hydra
+
+load_dotenv()
 from hydra.core.global_hydra import GlobalHydra
 import pandas as pd
 import streamlit as st

@@ -30,6 +30,21 @@ The PLGrid setup is complicated. I provide a few scripts to streamline the proce
 
 Runnng these commands sets up a Conda environment in the `$SCRATCH` directory so it can be removed when the environment is unused for a few days. If that happens, just rerun the commands above.
 
+#### Environment variables
+
+Copy `.env.example` to `.env` and fill in your values:
+```bash
+cp .env.example .env
+```
+
+The `.env` file configures user-specific settings used by the `athena` infrastructure config:
+| Variable | Description |
+|----------|-------------|
+| `PLG_GROUP_NAME` | Your PLGrid group name |
+| `PLG_USERNAME` | Your PLGrid username |
+| `PLG_SLURM_ACCOUNT` | Your SLURM account for GPU partition |
+| `NOTIFICATION_EMAIL` | Email for SLURM job notifications |
+
 ## When you come back
 ### Local
 1. `conda activate diffusion-deep-dream-research-env`
@@ -96,7 +111,7 @@ The `data_root` setting controls where all data lives. Two directories are deriv
 
 Each infrastructure config sets `data_root` differently:
 - **`local`** — `data_root` is the project root directory
-- **`athena`** — `data_root` is `$PLG_GROUPS_STORAGE/plggailpwmm/aszokalski/<project_name>` (PLGrid group storage. You should probably set it to your own with the CLI command below)
+- **`athena`** — `data_root` is `$PLG_GROUPS_STORAGE/$PLG_GROUP_NAME/$PLG_USERNAME/<project_name>` (PLGrid group storage, configured via `.env`)
 
 You can override it directly:
 ```bash
