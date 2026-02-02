@@ -108,7 +108,7 @@ class DeepDreamStageConfig(StageConfig):
     name: str = "deep_dream"
     timestep_analysis_results_dir: Path = MISSING
 
-    # We will use one set of results for SAE and
+    # I will use one set of results for SAE and
     # non sae so they need to have used correct
     # hyperparams for each.
     prior_results_dir: Path = MISSING

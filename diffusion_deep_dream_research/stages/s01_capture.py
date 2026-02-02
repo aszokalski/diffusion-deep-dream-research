@@ -128,7 +128,6 @@ def run_capture(config: ExperimentConfig):
             images_save_path = batch_dir / "generated_images"
             images_save_path.mkdir(parents=True, exist_ok=True)
             for img_idx, image in enumerate(result.images):
-                #save pil images as png
                 image.save(images_save_path / f"image_{img_idx:04d}.png")
 
 
