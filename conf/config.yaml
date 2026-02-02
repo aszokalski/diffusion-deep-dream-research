@@ -10,6 +10,7 @@ defaults:
   - stages/plots@stages.plots
   - stages/prior@stages.prior
   - stages/deep_dream@stages.deep_dream
+  - stages/representation@stages.representation
   - infrastructure: athena
   - _self_
 

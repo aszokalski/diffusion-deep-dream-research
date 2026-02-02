@@ -9,6 +9,8 @@ help:
 	@echo "  make install     - Install all dependencies"
 	@echo "  make clean       - Remove Python cache files"
 	@echo "  make submodules  - Initialize/update git submodules"
+	@echo "  make test        - Run the test suite"
+
 env:
 	conda create -n $(PROJECT_NAME)-env python=3.12 -y -vv
 	@echo "Conda environment '$(PROJECT_NAME)-env' created."
@@ -28,3 +30,6 @@ install: submodules
 clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
+
+test:
+	pytest tests/

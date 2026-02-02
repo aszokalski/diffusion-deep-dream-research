@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+import sys
+import traceback
 from typing import Callable
 
 import hydra
@@ -18,6 +20,7 @@ from diffusion_deep_dream_research.stages.s02_timestep_analysis import run_times
 from diffusion_deep_dream_research.stages.s03_plots import run_plots
 from diffusion_deep_dream_research.stages.s04_prior import run_prior
 from diffusion_deep_dream_research.stages.s05_deep_dream import run_deep_dream
+from diffusion_deep_dream_research.stages.s06_representation import run_representation
 from diffusion_deep_dream_research.utils.logging import setup_distributed_logging
 
 register_configs()
@@ -28,15 +31,19 @@ stages: dict[Stage, Callable[[ExperimentConfig], None]] = {
     Stage.timestep_analysis: run_timestep_analysis,
     Stage.plots: run_plots,
     Stage.prior: run_prior,
-    Stage.deep_dream: run_deep_dream
+    Stage.deep_dream: run_deep_dream,
+    Stage.representation: run_representation,
 }
+
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: ExperimentConfig) -> None:
     try:
         env = submitit.JobEnvironment()
-    except RuntimeError as e:
-        logger.warning("Submitit env not found. If you want to run on Submitit make sure to use the --multirun flag.")
+    except RuntimeError:
+        logger.warning(
+            "Submitit env not found. If you want to run on Submitit make sure to use the --multirun flag."
+        )
         env = None
 
     if env is not None:
@@ -46,13 +53,18 @@ def main(cfg: ExperimentConfig) -> None:
     config: ExperimentConfig = OmegaConf.to_object(cfg)
     logger.info(f"Running with config: {OmegaConf.to_yaml(cfg)}")
     logger.info(f"Executing stage: {config.stage}...")
-    stages[config.stage](
-        config
+
+    try:
+        stages[config.stage](config)
+    except BaseException:
+        traceback.print_exc(file=sys.stderr)
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+    logger.info(
+        f"Done! Results at: \n [absolute] {Path(os.getcwd())} \n [relative to outputs] {Path(os.getcwd()).relative_to(config.outputs_dir)}"
     )
-
-    logger.info(f"Done! Results at: \n [absolute] {Path(os.getcwd())} \n [relative to outputs] {Path(os.getcwd()).relative_to(config.outputs_dir)}")
-
-
 
 
 if __name__ == "__main__":

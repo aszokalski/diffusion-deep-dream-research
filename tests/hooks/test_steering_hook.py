@@ -17,6 +17,9 @@ class TestLayerSteeringHook:
         mock_pipe = MagicMock()
         mock_unet = MagicMock()
 
+        mock_pipe.device = torch.device("cpu")
+        mock_unet.dtype = torch.float32
+
         mock_unet.current_timestep = 50
 
         mock_pipe.unet = mock_unet
@@ -47,6 +50,9 @@ class TestSaeSteeringHook:
         mock_pipe = MagicMock()
         mock_unet = MagicMock()
         mock_sae = MockSae(10, 100)
+
+        mock_pipe.device = torch.device("cpu")
+        mock_unet.dtype = torch.float32
 
         mock_unet.current_timestep = 50
 

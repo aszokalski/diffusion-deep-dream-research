@@ -1,0 +1,4 @@
+# @package stages.deep_dream
+jitter_max: 16
+rotate_max: 45
+scale_max: 1.8

@@ -35,6 +35,7 @@ class Stage(str, Enum):
     plots = "plots"
     prior = "prior"
     deep_dream = "deep_dream"
+    representation = "representation"
 
 
 @dataclass
@@ -112,10 +113,14 @@ class DeepDreamStageConfig(StageConfig):
     # hyperparams for each.
     prior_results_dir: Path = MISSING
 
+    # These are just for small scale sweeps:
     start_channel: Optional[int] = None
     end_channel: Optional[int] = None
+    channels: Optional[list[int]] = None
+    channels_sae: Optional[list[int]] = None
 
     timesteps: list[Union[int, str]] = MISSING
+    use_just_one_timestep: Optional[bool] = False
 
     # This is not really a regularization,
     # but it is similar to transformation robustness.
@@ -136,11 +141,13 @@ class DeepDreamStageConfig(StageConfig):
 
     gradient_smoothing_sigma_start: float = MISSING
     gradient_smoothing_sigma_end: float = MISSING
+    gradient_smoothing_sigma_start_sae: Optional[float] = None
+    gradient_smoothing_sigma_end_sae: Optional[float] = None
 
     gradient_smoothing_kernel_size: int = 9
 
-    use_decorrelated_space: bool = MISSING
-    use_decorrelated_space_sae: Optional[float] = None
+    use_gradient_spectral_filtering: bool = MISSING
+    use_gradient_spectral_filtering_sae: Optional[float] = None
 
     jitter_max: int = MISSING
     jitter_max_sae: Optional[int] = None
@@ -161,9 +168,19 @@ class DeepDreamStageConfig(StageConfig):
     # Only used if not using prior.
     # Otherwise, using the number of results from prior.
     seeds: Optional[list[int]] = None
+    n_results: Optional[int] = None
 
     log_every_n_steps: int = MISSING
     intermediate_opt_results_every_n_steps: int = MISSING
+
+
+@dataclass
+class RepresentationStageConfig(StageConfig):
+    name: str = "representation"
+    timestep_analysis_results_dir: Path = MISSING
+    prior_results_dir: Path = MISSING
+    deep_dream_results_dir_noise: Path = MISSING
+    deep_dream_results_dir_no_noise: Optional[Path] = None
 
 
 @dataclass
@@ -217,3 +234,4 @@ def register_configs():
     cs.store(group="stages", name="plots_schema", node=PlotsStageConfig)
     cs.store(group="stages", name="prior_schema", node=PriorStageConfig)
     cs.store(group="stages", name="deep_dream_schema", node=DeepDreamStageConfig)
+    cs.store(group="stages", name="representation_schema", node=RepresentationStageConfig)

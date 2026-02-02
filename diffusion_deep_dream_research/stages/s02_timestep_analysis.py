@@ -125,7 +125,10 @@ def analysis(
 
         # Activity peaks
         peaks, properties = find_peaks(
-            y_full, height=stage_config.peak_threshold, distance=stage_config.peak_separation
+            y_full,
+            height=stage_config.peak_threshold,
+            distance=stage_config.peak_separation,
+            plateau_size=1,  # if there are flat peaks
         )
 
         current_peaks = []
