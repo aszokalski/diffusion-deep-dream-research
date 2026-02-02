@@ -1,8 +1,8 @@
 from diffusers.models.attention_processor import Attention
 from diffusers.models.transformers.transformer_2d import Transformer2DModel
-
-import torch.nn as nn
 import torch
+import torch.nn as nn
+
 
 def reshape_to_batch_spatial_channels(module: nn.Module, activations: torch.Tensor) -> torch.Tensor:
     """

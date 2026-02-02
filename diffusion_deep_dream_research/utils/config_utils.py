@@ -1,4 +1,4 @@
-from dataclasses import replace, fields
+from dataclasses import fields, replace
 
 from diffusion_deep_dream_research.config.config_schema import DeepDreamStageConfig
 
