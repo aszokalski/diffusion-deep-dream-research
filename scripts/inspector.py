@@ -8,8 +8,6 @@ from typing import Dict, List, Optional
 import altair as alt
 from dotenv import load_dotenv
 import hydra
-
-load_dotenv()
 from hydra.core.global_hydra import GlobalHydra
 import pandas as pd
 import streamlit as st
@@ -22,6 +20,8 @@ from diffusion_deep_dream_research.utils.deep_dream_results_reading_utils import
 from diffusion_deep_dream_research.utils.prior_results_reading_utils import (
     ChannelPriors,
 )
+
+load_dotenv()
 
 
 # cli arguments
