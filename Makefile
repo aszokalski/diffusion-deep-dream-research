@@ -1,4 +1,4 @@
-PROJECT_NAME := diffusion-deep-dream-research
+PROJECT_NAME := diffusion-deep-dream-research-test
 .PHONY: help env remove-env submodules install clean
 
 # Default target: lists commands

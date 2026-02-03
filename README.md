@@ -42,6 +42,7 @@ The `.env` file configures user-specific settings used by the `athena` infrastru
 |----------|-------------|
 | `PLG_GROUP_NAME` | Your PLGrid group name |
 | `PLG_USERNAME` | Your PLGrid username |
+| `PLG_SLURM_PARTITION` | Your SLURM GPU partition |
 | `PLG_SLURM_ACCOUNT` | Your SLURM account for GPU partition |
 | `NOTIFICATION_EMAIL` | Email for SLURM job notifications |
 
@@ -111,7 +112,7 @@ The `data_root` setting controls where all data lives. Two directories are deriv
 
 Each infrastructure config sets `data_root` differently:
 - **`local`** — `data_root` is the project root directory
-- **`athena`** — `data_root` is `$PLG_GROUPS_STORAGE/$PLG_GROUP_NAME/$PLG_USERNAME/<project_name>` (PLGrid group storage, configured via `.env`)
+- **`athena`** — `data_root` is `$PLG_GROUPS_STORAGE/$PLG_GROUP_NAME/$PLG_USERNAME/<project_name>` (`$PLG_GROUPS_STORAGE` is preconfigured on PLGrid)
 
 You can override it directly:
 ```bash
@@ -182,22 +183,24 @@ The seven stages, meant to be run in order:
 | Stage | Command | Description |
 |-------|---------|-------------|
 | **Provision** | `python main.py stage=provision` | Downloads models and datasets from HuggingFace/GDrive to `<output_dir>/assets/` |
-| **Capture** | `python main.py stage=capture` | Runs inference on dataset prompts, captures neuron activations at each timestep. Supports distributed execution via Lightning Fabric. |
-| **Timestep Analysis** | `python main.py stage=timestep_analysis` | Analyzes captured activations and computes active timesteps, activity peaks, and dataset examples |
-| **Plots** | `python main.py stage=plots` | Generates activity profile visualizations|
-| **Prior** | `python main.py stage=prior` | Generates steered priors |
-| **Deep Dream** | `python main.py stage=deep_dream` | Main optimization|
-| **Representation** | `python main.py stage=representation` | Compiles final results into per-channel data shards and an index for inspection |
+| **Capture** | `python main.py stage=capture` | Runs inference on dataset prompts, captures neuron activations at each timestep. Supports distributed execution via Lightning Fabric. I recommend using at least 4 GPUs|
+| **Timestep Analysis** | `python main.py stage=timestep_analysis` | Analyzes captured activations and computes active timesteps, activity peaks, and dataset examples. No GPU needed |
+| **Plots** | `python main.py stage=plots` | Generates activity profile visualizations. No GPU needed.|
+| **Prior** | `python main.py stage=prior` | Generates steered priors.  I recommend using at least 4 GPUs |
+| **Deep Dream** | `python main.py stage=deep_dream` | Main optimization.  I recommend using at least 4 GPUs|
+| **Representation** | `python main.py stage=representation` | Compiles final results into per-channel data shards and an index for inspection. No GPUs needed, |
 
 ### Multi-run (SLURM)
 
 For cluster execution, use the `--multirun` flag along with `infrastructure=athena` (for PLGrid, default):
 
 ```bash
-python main.py stage=capture --multirun
+python main.py --multirun stage=capture
 ```
 
 This command should be executed on a name node with the Conda environment setup as mentioned in the Initial Setup section.
+
+Keep in mind that jobs executing with multi-run on a GPU partition do not have access to the internet. So the `provision` stage must be run either on the name node (just without the `--multirun` flag) or in an interactive session (`./scripts/start-interactive-session.sh`)
 
 ### Overriding stage parameters
 

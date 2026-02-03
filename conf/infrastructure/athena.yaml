@@ -19,30 +19,24 @@ stages:
 
 hydra:
   launcher:
-    # 1. Athena Partition & Account
-    partition: plgrid-gpu-a100
+    partition: ${oc.env:PLG_SLURM_PARTITION}
     account: ${oc.env:PLG_SLURM_ACCOUNT}
 
     nodes: 1
-    gpus_per_node: 0 #or 4
-    tasks_per_node: 1 #or 4
+    #Keep tasks per node the same as gpus (besides gpus = 0 for CPU jobs)
+    gpus_per_node: 0
+    tasks_per_node: 1
 
     # Athena allows up to 16 CPUs and ~125GB RAM per A100 without extra charge.
-    # We use 16 to speed up num_workers.
     cpus_per_task: 16
     mem_gb: 125
+    
+    timeout_min: 30
 
-    # 3. Time Limits & Reliability
-    timeout_min: 30  # 2 Hours (10 mins for testing)
-
-    # If the job hits the 24h limit, Submitit will auto-requeue it 3 times.
-    # Your .done marker logic ensures it resumes where it left off.
     max_num_timeout: 3
     signal_delay_s: 120
 
-    # 4. Advanced SLURM Flags
     additional_parameters:
-      # Send SIGUSR1 90 seconds before timeout to allow graceful shutdown
       signal: SIGUSR1@90
       requeue: true
 

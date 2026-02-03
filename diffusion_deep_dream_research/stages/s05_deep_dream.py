@@ -56,7 +56,7 @@ def generate_deep_dreams_for_channel_timestep(
     activation_type: CaptureHook.ActivationType,
     priors: torch.Tensor,
     output_dir: Path,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, Dict[str, Any]]:
     latents = priors.detach().clone().float()
     latents.requires_grad_(True)
 
